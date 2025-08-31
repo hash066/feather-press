@@ -1,15 +1,37 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+/* Feather Press Design System - Publishing-focused aesthetics */
 
 @layer base {
   :root {
+    /* Core Publishing Palette */
     --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --foreground: 220 26% 14%;
+    
+    /* Brand Colors - Inspired by ink and paper */
+    --brand-primary: 220 26% 14%;
+    --brand-secondary: 197 37% 24%;
+    --brand-accent: 43 74% 66%;
+    
+    /* Publishing Gradients */
+    --gradient-hero: linear-gradient(135deg, hsl(220, 26%, 14%) 0%, hsl(197, 37%, 24%) 100%);
+    --gradient-content: linear-gradient(180deg, hsl(0, 0%, 98%) 0%, hsl(0, 0%, 95%) 100%);
+    --gradient-card: linear-gradient(145deg, hsl(0, 0%, 100%) 0%, hsl(0, 0%, 98%) 100%);
+    
+    /* Shadows for depth */
+    --shadow-soft: 0 2px 8px -2px hsl(220, 26%, 14%, 0.08);
+    --shadow-medium: 0 8px 24px -4px hsl(220, 26%, 14%, 0.12);
+    --shadow-strong: 0 20px 40px -8px hsl(220, 26%, 14%, 0.16);
+    
+    /* Content focused colors */
+    --content-primary: 220 26% 14%;
+    --content-secondary: 220 13% 46%;
+    --content-muted: 220 13% 69%;
+    --content-subtle: 220 13% 91%;
 
     --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
@@ -17,17 +39,17 @@ All colors MUST be HSL.
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 220 26% 14%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 220 13% 91%;
+    --secondary-foreground: 220 26% 14%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 220 13% 91%;
+    --muted-foreground: 220 13% 46%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 43 74% 66%;
+    --accent-foreground: 220 26% 14%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
@@ -100,6 +122,41 @@ All colors MUST be HSL.
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-inter;
+    font-feature-settings: 'rlig' 1, 'calt' 1;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display;
+  }
+}
+
+@layer components {
+  .content-grid {
+    @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6;
+  }
+  
+  .hero-gradient {
+    background: var(--gradient-hero);
+  }
+  
+  .content-gradient {
+    background: var(--gradient-content);
+  }
+  
+  .card-gradient {
+    background: var(--gradient-card);
+  }
+  
+  .shadow-soft {
+    box-shadow: var(--shadow-soft);
+  }
+  
+  .shadow-medium {
+    box-shadow: var(--shadow-medium);
+  }
+  
+  .shadow-strong {
+    box-shadow: var(--shadow-strong);
   }
 }
