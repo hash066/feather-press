@@ -56,9 +56,14 @@ const features = [
 
 export const FeaturesSection = () => {
   return (
-    <section className="py-20 bg-background">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-16">
+    <section className="py-20 bg-background relative overflow-hidden">
+      {/* Animated Background */}
+      <div className="absolute inset-0 floating-bg"></div>
+      <div className="absolute top-20 left-20 w-32 h-32 bg-brand-primary/5 rounded-full blur-2xl animate-float"></div>
+      <div className="absolute bottom-20 right-20 w-40 h-40 bg-brand-accent/5 rounded-full blur-3xl animate-float" style={{animationDelay: '4s'}}></div>
+      
+      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="text-center mb-16 animate-fade-in">
           <h2 className="text-4xl md:text-5xl font-display font-bold text-content-primary mb-4">
             Built for Modern Publishing
           </h2>
@@ -70,22 +75,28 @@ export const FeaturesSection = () => {
         
         <div className="content-grid mb-16">
           {features.map((feature, index) => (
-            <Card key={index} className="card-gradient shadow-soft hover:shadow-medium transition-all duration-300 group">
-              <CardHeader className="text-center pb-4">
-                <div className="mx-auto w-12 h-12 mb-4 rounded-full bg-brand-primary/10 flex items-center justify-center group-hover:bg-brand-primary/20 transition-colors duration-300">
-                  <feature.icon className="w-6 h-6 text-brand-primary" />
-                </div>
-                <CardTitle className="text-content-primary font-display">{feature.title}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-content-secondary text-center">{feature.description}</p>
-              </CardContent>
-            </Card>
+            <div 
+              key={index}
+              className="animate-fade-in"
+              style={{ animationDelay: `${index * 0.15}s` }}
+            >
+              <Card className="card-gradient shadow-soft hover:shadow-medium transition-all duration-500 group hover-scale">
+                <CardHeader className="text-center pb-4">
+                  <div className="mx-auto w-12 h-12 mb-4 rounded-full bg-brand-primary/10 flex items-center justify-center group-hover:bg-brand-primary/20 transition-all duration-500 animate-float">
+                    <feature.icon className="w-6 h-6 text-brand-primary group-hover:scale-110 transition-transform duration-300" />
+                  </div>
+                  <CardTitle className="text-content-primary font-display group-hover:text-brand-primary transition-colors duration-300">{feature.title}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-content-secondary text-center group-hover:text-content-primary transition-colors duration-300">{feature.description}</p>
+                </CardContent>
+              </Card>
+            </div>
           ))}
         </div>
         
-        <div className="text-center">
-          <Button variant="hero" size="lg" className="text-lg px-8 py-4 h-auto">
+        <div className="text-center animate-fade-in" style={{animationDelay: '1.2s'}}>
+          <Button variant="hero" size="lg" className="text-lg px-8 py-4 h-auto hover-scale">
             Explore All Features
           </Button>
         </div>

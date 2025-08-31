@@ -4,8 +4,9 @@ import heroImage from "@/assets/hero-bg.jpg";
 
 export const HeroSection = () => {
   return (
-    <section className="relative min-h-[80vh] flex items-center justify-center overflow-hidden">
-      {/* Background Image with Overlay */}
+    <section className="relative min-h-[80vh] flex items-center justify-center overflow-hidden floating-bg">
+      {/* Animated Background Elements */}
+      <div className="absolute inset-0 animated-gradient opacity-20"></div>
       <div 
         className="absolute inset-0 bg-cover bg-center bg-no-repeat"
         style={{ backgroundImage: `url(${heroImage})` }}
@@ -14,10 +15,10 @@ export const HeroSection = () => {
       </div>
       
       {/* Content */}
-      <div className="relative z-10 max-w-4xl mx-auto text-center px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-center mb-6">
-          <div className="flex items-center space-x-2 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-full border border-white/20">
-            <Sparkles className="w-4 h-4 text-brand-accent" />
+      <div className="relative z-10 max-w-4xl mx-auto text-center px-4 sm:px-6 lg:px-8 animate-fade-in">
+        <div className="flex items-center justify-center mb-6 animate-scale-in">
+          <div className="flex items-center space-x-2 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-full border border-white/20 hover:bg-white/20 transition-all duration-300">
+            <Sparkles className="w-4 h-4 text-brand-accent animate-glow" />
             <span className="text-white/90 text-sm font-medium">Ultimate Publishing Platform</span>
           </div>
         </div>
@@ -47,8 +48,9 @@ export const HeroSection = () => {
       </div>
       
       {/* Decorative Elements */}
-      <div className="absolute top-20 left-10 w-20 h-20 bg-brand-accent/20 rounded-full blur-xl"></div>
-      <div className="absolute bottom-20 right-10 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
+      <div className="absolute top-20 left-10 w-20 h-20 bg-brand-accent/20 rounded-full blur-xl animate-float"></div>
+      <div className="absolute bottom-20 right-10 w-32 h-32 bg-white/10 rounded-full blur-2xl animate-float" style={{animationDelay: '2s'}}></div>
+      <div className="absolute top-1/2 left-1/4 w-16 h-16 bg-brand-secondary/15 rounded-full blur-lg animate-float" style={{animationDelay: '4s'}}></div>
     </section>
   );
 };

@@ -2,6 +2,7 @@ import { Navigation } from "@/components/Navigation";
 import { HeroSection } from "@/components/HeroSection";
 import { ContentTypesGrid } from "@/components/ContentTypesGrid";
 import { FeaturesSection } from "@/components/FeaturesSection";
+import { StatsSection } from "@/components/StatsSection";
 
 const Index = () => {
   return (
@@ -9,6 +10,7 @@ const Index = () => {
       <Navigation />
       <main>
         <HeroSection />
+        <StatsSection />
         <ContentTypesGrid />
         <FeaturesSection />
       </main>

@@ -1,4 +1,5 @@
 import { ContentTypeCard } from "./ContentTypeCard";
+import { InteractiveContentCard } from "./InteractiveContentCard";
 import { 
   FileText, 
   Image, 
@@ -61,9 +62,14 @@ const contentTypes = [
 
 export const ContentTypesGrid = () => {
   return (
-    <section className="py-20 content-gradient">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-16">
+    <section className="py-20 content-gradient relative overflow-hidden">
+      {/* Animated Background Elements */}
+      <div className="absolute inset-0 floating-bg"></div>
+      <div className="absolute top-10 right-10 w-40 h-40 bg-brand-accent/5 rounded-full blur-3xl animate-float"></div>
+      <div className="absolute bottom-10 left-10 w-60 h-60 bg-brand-secondary/5 rounded-full blur-3xl animate-float" style={{animationDelay: '3s'}}></div>
+      
+      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="text-center mb-16 animate-fade-in">
           <h2 className="text-4xl md:text-5xl font-display font-bold text-content-primary mb-4">
             Every Story, Every Format
           </h2>
@@ -75,13 +81,18 @@ export const ContentTypesGrid = () => {
         
         <div className="content-grid">
           {contentTypes.map((type, index) => (
-            <ContentTypeCard
+            <div 
               key={index}
-              title={type.title}
-              description={type.description}
-              icon={type.icon}
-              onClick={() => console.log(`Creating ${type.title}`)}
-            />
+              className="animate-fade-in"
+              style={{ animationDelay: `${index * 0.1}s` }}
+            >
+              <InteractiveContentCard
+                title={type.title}
+                description={type.description}
+                icon={type.icon}
+                onClick={() => console.log(`Creating ${type.title}`)}
+              />
+            </div>
           ))}
         </div>
       </div>
