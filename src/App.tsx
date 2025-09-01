@@ -12,6 +12,8 @@ import TestSupabase from "./pages/TestSupabase";
 import About from "./pages/About";
 import Contact from "./pages/Contact";
 import NotFound from "./pages/NotFound";
+import Login from "./pages/Login";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 const queryClient = new QueryClient();
 
@@ -23,14 +25,15 @@ const App = () => (
       <BrowserRouter>
         <div className="min-h-screen bg-background">
           <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/create-post" element={<CreatePost />} />
-            <Route path="/blog" element={<ChyrpBlog />} />
-            <Route path="/post/:slug" element={<ChyrpPostDetail />} />
-            <Route path="/gallery" element={<PhotoGallery />} />
-            <Route path="/test-supabase" element={<TestSupabase />} />
-            <Route path="/about" element={<About />} />
-            <Route path="/contact" element={<Contact />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+            <Route path="/create-post" element={<ProtectedRoute><CreatePost /></ProtectedRoute>} />
+            <Route path="/blog" element={<ProtectedRoute><ChyrpBlog /></ProtectedRoute>} />
+            <Route path="/post/:slug" element={<ProtectedRoute><ChyrpPostDetail /></ProtectedRoute>} />
+            <Route path="/gallery" element={<ProtectedRoute><PhotoGallery /></ProtectedRoute>} />
+            <Route path="/test-supabase" element={<ProtectedRoute><TestSupabase /></ProtectedRoute>} />
+            <Route path="/about" element={<ProtectedRoute><About /></ProtectedRoute>} />
+            <Route path="/contact" element={<ProtectedRoute><Contact /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </div>
