@@ -20,8 +20,8 @@ export const Navigation = () => {
   return (
     <nav className={`w-full sticky top-0 z-50 transition-all duration-300 ${
       isScrolled 
-        ? 'bg-background/95 backdrop-blur-md border-b border-content-subtle shadow-lg' 
-        : 'bg-transparent'
+        ? 'bg-white/95 backdrop-blur-md border-b border-gray-200 shadow-lg' 
+        : 'bg-white'
     }`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16 lg:h-20">
@@ -31,10 +31,10 @@ export const Navigation = () => {
             onClick={() => navigate('/')}
           >
             <div className="relative">
-              <PenTool className="w-8 h-8 text-brand-primary group-hover:text-brand-accent transition-colors duration-300 animate-float" />
+              <PenTool className="w-8 h-8 text-gray-800 group-hover:text-yellow-600 transition-colors duration-300 animate-float" />
               <div className="absolute inset-0 w-8 h-8 bg-brand-accent/20 rounded-full blur-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
             </div>
-            <h1 className="text-2xl lg:text-3xl font-display font-bold text-brand-primary group-hover:text-brand-accent transition-colors duration-300">
+            <h1 className="text-2xl lg:text-3xl font-display font-bold text-gray-800 group-hover:text-yellow-600 transition-colors duration-300">
               Feather Press
             </h1>
           </div>
@@ -51,11 +51,11 @@ export const Navigation = () => {
               <a 
                 key={item.name}
                 href={item.href} 
-                className="relative text-content-secondary hover:text-content-primary transition-colors duration-300 font-medium group"
+                className="relative text-gray-600 hover:text-gray-800 transition-colors duration-300 font-medium group"
                 style={{ animationDelay: `${index * 0.1}s` }}
               >
                 {item.name}
-                <div className="absolute -bottom-1 left-0 w-0 h-0.5 bg-brand-accent group-hover:w-full transition-all duration-300"></div>
+                <div className="absolute -bottom-1 left-0 w-0 h-0.5 bg-yellow-500 group-hover:w-full transition-all duration-300"></div>
               </a>
             ))}
           </div>
@@ -66,41 +66,40 @@ export const Navigation = () => {
             <Button 
               variant="ghost" 
               size="icon" 
-              className="relative group hover:bg-brand-accent/10 transition-all duration-300"
+              className="relative group hover:bg-yellow-100 transition-all duration-300"
             >
-              <Search className="w-4 h-4 group-hover:text-brand-accent transition-colors duration-300" />
-              <div className="absolute inset-0 bg-brand-accent/10 rounded-full scale-0 group-hover:scale-100 transition-transform duration-300"></div>
+              <Search className="w-4 h-4 group-hover:text-yellow-600 transition-colors duration-300" />
+              <div className="absolute inset-0 bg-yellow-100 rounded-full scale-0 group-hover:scale-100 transition-transform duration-300"></div>
             </Button>
             
             {/* Settings Button */}
             <Button 
               variant="ghost" 
               size="icon" 
-              className="relative group hover:bg-brand-accent/10 transition-all duration-300"
+              className="relative group hover:bg-yellow-100 transition-all duration-300"
             >
-              <Settings className="w-4 h-4 group-hover:text-brand-accent transition-colors duration-300" />
-              <div className="absolute inset-0 bg-brand-accent/10 rounded-full scale-0 group-hover:scale-100 transition-transform duration-300"></div>
+              <Settings className="w-4 h-4 group-hover:text-yellow-600 transition-colors duration-300" />
+              <div className="absolute inset-0 bg-yellow-100 rounded-full scale-0 group-hover:scale-100 transition-transform duration-300"></div>
             </Button>
             
             {/* User Button */}
             <Button 
               variant="ghost" 
               size="icon" 
-              className="relative group hover:bg-brand-accent/10 transition-all duration-300"
+              className="relative group hover:bg-yellow-100 transition-all duration-300"
             >
-              <User className="w-4 h-4 group-hover:text-brand-accent transition-colors duration-300" />
-              <div className="absolute inset-0 bg-brand-accent/10 rounded-full scale-0 group-hover:scale-100 transition-transform duration-300"></div>
+              <User className="w-4 h-4 group-hover:text-yellow-600 transition-colors duration-300" />
+              <div className="absolute inset-0 bg-yellow-100 rounded-full scale-0 group-hover:scale-100 transition-transform duration-300"></div>
             </Button>
             
             {/* Enhanced New Post Button */}
             <Button 
-              variant="hero" 
+              variant="default" 
               size="lg" 
-              className="relative overflow-hidden group btn-enhanced glow-border"
+              className="relative overflow-hidden group bg-gray-800 hover:bg-gray-900 text-white"
               onClick={() => navigate('/create-post')}
             >
               <span className="relative z-10 font-medium">New Post</span>
-              <div className="absolute inset-0 bg-gradient-to-r from-brand-accent to-brand-secondary opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
             </Button>
             
             {/* Mobile Menu Button */}
@@ -111,9 +110,9 @@ export const Navigation = () => {
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             >
               {isMobileMenuOpen ? (
-                <X className="w-5 h-5 group-hover:text-brand-accent transition-colors duration-300" />
+                <X className="w-5 h-5 group-hover:text-yellow-600 transition-colors duration-300" />
               ) : (
-                <Menu className="w-5 h-5 group-hover:text-brand-accent transition-colors duration-300" />
+                <Menu className="w-5 h-5 group-hover:text-yellow-600 transition-colors duration-300" />
               )}
             </Button>
           </div>
@@ -123,7 +122,7 @@ export const Navigation = () => {
         <div className={`md:hidden transition-all duration-300 overflow-hidden ${
           isMobileMenuOpen ? 'max-h-64 opacity-100' : 'max-h-0 opacity-0'
         }`}>
-          <div className="py-4 space-y-3 border-t border-content-subtle">
+          <div className="py-4 space-y-3 border-t border-gray-200">
             {[
               { name: 'Home', href: '/' },
               { name: 'Blog', href: '/blog' },
@@ -134,7 +133,7 @@ export const Navigation = () => {
               <a 
                 key={item.name}
                 href={item.href} 
-                className="block px-4 py-2 text-content-secondary hover:text-content-primary hover:bg-brand-accent/5 rounded-lg transition-all duration-300"
+                className="block px-4 py-2 text-gray-600 hover:text-gray-800 hover:bg-yellow-50 rounded-lg transition-all duration-300"
                 style={{ animationDelay: `${index * 0.1}s` }}
                 onClick={() => setIsMobileMenuOpen(false)}
               >
@@ -146,7 +145,7 @@ export const Navigation = () => {
       </div>
       
       {/* Enhanced Background Blur */}
-      <div className="absolute inset-0 bg-background/80 backdrop-blur-md -z-10"></div>
+      <div className="absolute inset-0 bg-white/80 backdrop-blur-md -z-10"></div>
     </nav>
   );
 };
