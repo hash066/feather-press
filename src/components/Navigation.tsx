@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { PenTool, User, Settings, Search, Menu, X } from "lucide-react";
+import { PenTool, User, Settings, Search, Menu, X, LogOut } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -7,6 +7,21 @@ export const Navigation = () => {
   const navigate = useNavigate();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+    const userData = localStorage.getItem('user');
+    if (userData) {
+      setUser(JSON.parse(userData));
+    }
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem('user');
+    localStorage.removeItem('token');
+    setUser(null);
+    navigate('/login');
+  };
 
   useEffect(() => {
     const handleScroll = () => {
@@ -82,15 +97,24 @@ export const Navigation = () => {
               <div className="absolute inset-0 bg-yellow-100 rounded-full scale-0 group-hover:scale-100 transition-transform duration-300"></div>
             </Button>
             
-            {/* User Button */}
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="relative group hover:bg-yellow-100 transition-all duration-300"
-            >
-              <User className="w-4 h-4 group-hover:text-yellow-600 transition-colors duration-300" />
-              <div className="absolute inset-0 bg-yellow-100 rounded-full scale-0 group-hover:scale-100 transition-transform duration-300"></div>
-            </Button>
+            {/* User Info */}
+            {user && (
+              <div className="flex items-center space-x-2">
+                <span className="text-sm text-gray-600 hidden lg:block">
+                  Welcome, {user.username}!
+                </span>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="relative group hover:bg-red-100 transition-all duration-300"
+                  onClick={handleLogout}
+                  title="Logout"
+                >
+                  <LogOut className="w-4 h-4 group-hover:text-red-600 transition-colors duration-300" />
+                  <div className="absolute inset-0 bg-red-100 rounded-full scale-0 group-hover:scale-100 transition-transform duration-300"></div>
+                </Button>
+              </div>
+            )}
             
             {/* Enhanced New Post Button */}
             <Button 

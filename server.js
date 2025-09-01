@@ -126,9 +126,96 @@ app.delete('/api/posts/:id', async (req, res) => {
   }
 });
 
+// Root API endpoint
+app.get('/api', (req, res) => {
+  res.json({ 
+    status: 'OK', 
+    message: 'Feather Press API is running',
+    endpoints: {
+      posts: '/api/posts',
+      health: '/api/health'
+    }
+  });
+});
+
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', message: 'Server is running' });
+});
+
+// Authentication routes
+
+// Login endpoint
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { pool } = await import('./src/lib/mysqlClient.js');
+    const { username, password } = req.body;
+    
+    if (!username || !password) {
+      return res.status(400).json({ error: 'Username and password are required' });
+    }
+    
+    const [rows] = await pool.execute(
+      'SELECT * FROM users WHERE username = ? AND password = ?',
+      [username, password]
+    );
+    
+    if (rows.length === 0) {
+      return res.status(401).json({ error: 'Invalid username or password' });
+    }
+    
+    const user = rows[0];
+    delete user.password; // Don't send password back
+    
+    res.json({ 
+      message: 'Login successful',
+      user,
+      token: 'dummy-token-' + Date.now() // Simple token for demo
+    });
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({ error: 'Login failed' });
+  }
+});
+
+// Register endpoint
+app.post('/api/auth/register', async (req, res) => {
+  try {
+    const { pool } = await import('./src/lib/mysqlClient.js');
+    const { username, password } = req.body;
+    
+    if (!username || !password) {
+      return res.status(400).json({ error: 'Username and password are required' });
+    }
+    
+    if (password.length < 3) {
+      return res.status(400).json({ error: 'Password must be at least 3 characters' });
+    }
+    
+    // Check if username already exists
+    const [existingUsers] = await pool.execute(
+      'SELECT id FROM users WHERE username = ?',
+      [username]
+    );
+    
+    if (existingUsers.length > 0) {
+      return res.status(400).json({ error: 'Username already exists' });
+    }
+    
+    // Create new user
+    const [result] = await pool.execute(
+      'INSERT INTO users (username, password) VALUES (?, ?)',
+      [username, password]
+    );
+    
+    res.status(201).json({ 
+      message: 'User created successfully',
+      userId: result.insertId
+    });
+  } catch (error) {
+    console.error('Registration error:', error);
+    res.status(500).json({ error: 'Registration failed' });
+  }
 });
 
 // Start server
