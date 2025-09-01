@@ -25,38 +25,20 @@ import {
 } from '@/components/ui/tooltip';
 
 interface Post {
-  id: string;
+  id: number;
   title: string;
-  slug: string;
-  excerpt?: string;
-  featuredImage?: string;
-  author: {
-    name: string;
-    avatar?: string;
-  };
-  category?: {
-    name: string;
-    slug: string;
-  };
-  tags?: Array<{
-    name: string;
-    slug: string;
-  }>;
-  createdAt: string;
-  readTime?: number;
-  viewCount?: number;
-  likeCount?: number;
-  commentCount?: number;
-  isTrending?: boolean;
-  isFeatured?: boolean;
+  content: string;
+  image_url?: string;
+  created_at: string;
+  updated_at: string;
 }
 
 interface ChyrpPostCardProps {
   post: Post;
   variant?: 'default' | 'featured' | 'compact';
-  onLike?: (postId: string) => void;
+  onLike?: (postId: number) => void;
   onShare?: (post: Post) => void;
-  onBookmark?: (postId: string) => void;
+  onBookmark?: (postId: number) => void;
 }
 
 export const ChyrpPostCard: React.FC<ChyrpPostCardProps> = ({
@@ -79,6 +61,18 @@ export const ChyrpPostCard: React.FC<ChyrpPostCardProps> = ({
     });
   };
 
+  const createExcerpt = (content: string, maxLength: number = 150): string => {
+    if (content.length <= maxLength) return content;
+    return content.substring(0, maxLength).trim() + '...';
+  };
+
+  const calculateReadTime = (content: string): string => {
+    const wordsPerMinute = 200;
+    const wordCount = content.split(/\s+/).length;
+    const minutes = Math.ceil(wordCount / wordsPerMinute);
+    return `${minutes} min read`;
+  };
+
   const handleLike = () => {
     setIsLiked(!isLiked);
     if (onLike) {
@@ -92,8 +86,8 @@ export const ChyrpPostCard: React.FC<ChyrpPostCardProps> = ({
     } else if (navigator.share) {
       navigator.share({
         title: post.title,
-        text: post.excerpt,
-        url: `${window.location.origin}/post/${post.slug}`,
+        text: createExcerpt(post.content),
+        url: `${window.location.origin}/post/${post.id}`,
       });
     }
   };
@@ -119,30 +113,7 @@ export const ChyrpPostCard: React.FC<ChyrpPostCardProps> = ({
 
   return (
     <TooltipProvider>
-      <Card className={`relative overflow-hidden chyrp-card chyrp-hover-lift ${cardVariants[variant]} ${
-        post.isTrending ? 'ring-2 ring-accent/50' : ''
-      } ${post.isFeatured ? 'ring-2 ring-primary/50' : ''}`}>
-        {/* Trending/Featured Badge */}
-        {(post.isTrending || post.isFeatured) && (
-          <div className="absolute top-4 left-4 z-10">
-            <Badge 
-              variant={post.isTrending ? "secondary" : "default"}
-              className="flex items-center space-x-1 text-xs"
-            >
-              {post.isTrending ? (
-                <>
-                  <TrendingUp className="w-3 h-3" />
-                  <span>Trending</span>
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-3 h-3" />
-                  <span>Featured</span>
-                </>
-              )}
-            </Badge>
-          </div>
-        )}
+      <Card className={`relative overflow-hidden chyrp-card chyrp-hover-lift ${cardVariants[variant]}`}>
 
         {/* Action Buttons */}
         <div className="absolute top-4 right-4 z-10 flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
@@ -180,11 +151,11 @@ export const ChyrpPostCard: React.FC<ChyrpPostCardProps> = ({
         </div>
 
         {/* Featured Image */}
-        {post.featuredImage && !imageError && (
+        {post.image_url && !imageError && (
           <div className={`relative overflow-hidden ${imageVariants[variant]}`}>
             <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent z-10" />
             <img
-              src={post.featuredImage}
+              src={post.image_url}
               alt={post.title}
               className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 ${
                 imageLoaded ? 'opacity-100' : 'opacity-0'
@@ -201,18 +172,14 @@ export const ChyrpPostCard: React.FC<ChyrpPostCardProps> = ({
 
         <CardHeader className="pb-3">
           {/* Category */}
-          {post.category && (
-            <div className="mb-2">
-              <Link to={`/category/${post.category.slug}`}>
-                <Badge variant="secondary" className="text-xs hover:bg-primary hover:text-primary-foreground transition-colors">
-                  {post.category.name}
-                </Badge>
-              </Link>
-            </div>
-          )}
+          <div className="mb-2">
+            <Badge variant="secondary" className="text-xs">
+              Blog Post
+            </Badge>
+          </div>
 
           {/* Title */}
-          <Link to={`/post/${post.slug}`}>
+          <Link to={`/post/${post.id}`}>
             <h3 className={`font-bold leading-tight group-hover:text-primary transition-colors duration-200 ${
               variant === 'featured' ? 'text-2xl' : variant === 'compact' ? 'text-lg' : 'text-xl'
             }`}>
@@ -221,9 +188,9 @@ export const ChyrpPostCard: React.FC<ChyrpPostCardProps> = ({
           </Link>
 
           {/* Excerpt */}
-          {post.excerpt && variant !== 'compact' && (
+          {variant !== 'compact' && (
             <p className="text-muted-foreground text-sm leading-relaxed line-clamp-2 group-hover:text-foreground/80 transition-colors duration-200">
-              {post.excerpt}
+              {createExcerpt(post.content)}
             </p>
           )}
         </CardHeader>
@@ -234,63 +201,36 @@ export const ChyrpPostCard: React.FC<ChyrpPostCardProps> = ({
             <div className="flex items-center space-x-3">
               <div className="flex items-center space-x-1">
                 <Avatar className="h-6 w-6">
-                  <AvatarImage src={post.author.avatar} alt={post.author.name} />
                   <AvatarFallback className="text-xs">
-                    {post.author.name.charAt(0).toUpperCase()}
+                    A
                   </AvatarFallback>
                 </Avatar>
-                <span className="font-medium text-foreground/80">{post.author.name}</span>
+                <span className="font-medium text-foreground/80">Admin</span>
               </div>
               <div className="flex items-center space-x-1">
                 <Calendar className="w-3 h-3" />
-                <span>{formatDate(post.createdAt)}</span>
+                <span>{formatDate(post.created_at)}</span>
               </div>
-              {post.readTime && (
-                <div className="flex items-center space-x-1">
-                  <Clock className="w-3 h-3" />
-                  <span>{post.readTime} min read</span>
-                </div>
-              )}
+              <div className="flex items-center space-x-1">
+                <Clock className="w-3 h-3" />
+                <span>{calculateReadTime(post.content)}</span>
+              </div>
             </div>
           </div>
 
-          {/* Tags */}
-          {post.tags && post.tags.length > 0 && variant !== 'compact' && (
-            <div className="flex flex-wrap gap-1 mb-4">
-              {post.tags.slice(0, 3).map((tag) => (
-                <Link key={tag.slug} to={`/tag/${tag.slug}`}>
-                  <Badge variant="outline" className="text-xs hover:bg-primary hover:text-primary-foreground transition-colors">
-                    {tag.name}
-                  </Badge>
-                </Link>
-              ))}
-              {post.tags.length > 3 && (
-                <Badge variant="outline" className="text-xs">
-                  +{post.tags.length - 3} more
-                </Badge>
-              )}
-            </div>
-          )}
+
 
           {/* Action Bar */}
           <div className="flex items-center justify-between pt-2 border-t">
             <div className="flex items-center space-x-4 text-xs text-muted-foreground">
-              {post.viewCount !== undefined && (
-                <div className="flex items-center space-x-1">
-                  <Eye className="w-3 h-3" />
-                  <span>{post.viewCount}</span>
-                </div>
-              )}
               <div className="flex items-center space-x-1">
                 <Heart className={`w-3 h-3 ${isLiked ? 'fill-current text-red-500' : ''}`} />
-                <span>{post.likeCount || 0}</span>
+                <span>0</span>
               </div>
-              {post.commentCount !== undefined && (
-                <div className="flex items-center space-x-1">
-                  <MessageCircle className="w-3 h-3" />
-                  <span>{post.commentCount}</span>
-                </div>
-              )}
+              <div className="flex items-center space-x-1">
+                <MessageCircle className="w-3 h-3" />
+                <span>0</span>
+              </div>
             </div>
 
             <div className="flex items-center space-x-1">
@@ -302,7 +242,7 @@ export const ChyrpPostCard: React.FC<ChyrpPostCardProps> = ({
               >
                 <Heart className={`w-4 h-4 ${isLiked ? 'fill-current text-red-500' : ''}`} />
               </Button>
-              <Link to={`/post/${post.slug}`}>
+              <Link to={`/post/${post.id}`}>
                 <Button variant="ghost" size="sm" className="h-8 px-3 text-xs">
                   Read More
                   <ExternalLink className="w-3 h-3 ml-1" />

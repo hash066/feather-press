@@ -30,7 +30,7 @@ export class TwigConverter {
     this.variables = [];
     this.dependencies = [];
 
-    let twigContent = jsx
+    const twigContent = jsx
       // Convert React props to Twig variables
       .replace(/\{([^}]+)\}/g, (match, content) => {
         if (content.includes('.')) {
