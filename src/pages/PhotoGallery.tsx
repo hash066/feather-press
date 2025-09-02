@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,119 +25,17 @@ import {
   Filter,
   Sparkles,
   Camera,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Trash2
 } from 'lucide-react';
 import { Navigation } from '@/components/Navigation';
 import { useScrollAnimation } from '@/hooks/useScrollAnimation';
 import { FloatingShapes, GradientMesh } from '@/components/AnimatedBackground';
+import { apiClient, PhotoItem } from '@/lib/apiClient';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
 
-// Mock photo data
-const mockPhotos = [
-  {
-    id: 1,
-    title: "Sunset at the Beach",
-    url: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&h=600&fit=crop",
-    description: "Beautiful sunset over the ocean with golden reflections",
-    photographer: "Sarah Wilson",
-    uploadedAt: "2024-01-15",
-    category: "Nature",
-    tags: ["sunset", "beach", "ocean", "golden hour"],
-    likes: 156,
-    downloads: 23,
-    views: 892
-  },
-  {
-    id: 2,
-    title: "Mountain Landscape",
-    url: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&h=600&fit=crop",
-    description: "Snow-capped mountains in the distance with dramatic clouds",
-    photographer: "Mike Johnson",
-    uploadedAt: "2024-01-14",
-    category: "Landscape",
-    tags: ["mountains", "snow", "landscape", "nature"],
-    likes: 234,
-    downloads: 45,
-    views: 1247
-  },
-  {
-    id: 3,
-    title: "City Skyline",
-    url: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&h=600&fit=crop",
-    description: "Modern city architecture with glass and steel",
-    photographer: "Alex Chen",
-    uploadedAt: "2024-01-13",
-    category: "Urban",
-    tags: ["city", "architecture", "urban", "modern"],
-    likes: 189,
-    downloads: 34,
-    views: 756
-  },
-  {
-    id: 4,
-    title: "Forest Path",
-    url: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&h=600&fit=crop",
-    description: "Peaceful forest trail with dappled sunlight",
-    photographer: "Emma Davis",
-    uploadedAt: "2024-01-12",
-    category: "Nature",
-    tags: ["forest", "path", "nature", "trees"],
-    likes: 145,
-    downloads: 28,
-    views: 634
-  },
-  {
-    id: 5,
-    title: "Flower Garden",
-    url: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&h=600&fit=crop",
-    description: "Colorful spring flowers in full bloom",
-    photographer: "Lisa Brown",
-    uploadedAt: "2024-01-11",
-    category: "Nature",
-    tags: ["flowers", "garden", "spring", "colorful"],
-    likes: 267,
-    downloads: 56,
-    views: 1456
-  },
-  {
-    id: 6,
-    title: "Desert Dunes",
-    url: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&h=600&fit=crop",
-    description: "Golden sand dunes stretching to the horizon",
-    photographer: "Tom Wilson",
-    uploadedAt: "2024-01-10",
-    category: "Landscape",
-    tags: ["desert", "dunes", "sand", "golden"],
-    likes: 198,
-    downloads: 41,
-    views: 987
-  },
-  {
-    id: 7,
-    title: "Abstract Art",
-    url: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&h=600&fit=crop",
-    description: "Colorful abstract patterns and shapes",
-    photographer: "David Lee",
-    uploadedAt: "2024-01-09",
-    category: "Art",
-    tags: ["abstract", "art", "colorful", "patterns"],
-    likes: 123,
-    downloads: 19,
-    views: 445
-  },
-  {
-    id: 8,
-    title: "Street Photography",
-    url: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&h=600&fit=crop",
-    description: "Candid moments of urban life",
-    photographer: "Maria Garcia",
-    uploadedAt: "2024-01-08",
-    category: "Urban",
-    tags: ["street", "photography", "urban", "candid"],
-    likes: 178,
-    downloads: 32,
-    views: 723
-  }
-];
+const mockPhotos: PhotoItem[] = [];
 
 const categories = ['All', 'Nature', 'Landscape', 'Urban', 'Art', 'Portrait'];
 
@@ -147,11 +45,25 @@ const PhotoGallery = () => {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [sortBy, setSortBy] = useState<'latest' | 'popular' | 'trending'>('latest');
   const [likedPhotos, setLikedPhotos] = useState<Set<number>>(new Set());
-  const [selectedPhoto, setSelectedPhoto] = useState<typeof mockPhotos[0] | null>(null);
+  const [selectedPhoto, setSelectedPhoto] = useState<PhotoItem | null>(null);
+  const [photos, setPhotos] = useState<PhotoItem[]>(mockPhotos);
   const { elementRef, isVisible } = useScrollAnimation(0.1);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [newPhoto, setNewPhoto] = useState<{title: string; url?: string; dataUrl?: string; description?: string; category?: string; tags?: string;}>({ title: '' });
+  const currentUser = JSON.parse(localStorage.getItem('user') || 'null');
+  const isAdmin = !!currentUser && currentUser.role === 'admin';
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const list = await apiClient.getPhotos();
+        setPhotos(list);
+      } catch {}
+    })();
+  }, []);
 
   // Filter and sort photos
-  const filteredPhotos = mockPhotos.filter(photo => {
+  const filteredPhotos = photos.filter(photo => {
     const matchesSearch = !searchQuery || 
       photo.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       photo.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -185,7 +97,7 @@ const PhotoGallery = () => {
     });
   };
 
-  const handleDownload = (photo: typeof mockPhotos[0]) => {
+  const handleDownload = (photo: PhotoItem) => {
     // Simulate download
     const link = document.createElement('a');
     link.href = photo.url;
@@ -193,7 +105,7 @@ const PhotoGallery = () => {
     link.click();
   };
 
-  const handleShare = (photo: typeof mockPhotos[0]) => {
+  const handleShare = (photo: PhotoItem) => {
     if (navigator.share) {
       navigator.share({
         title: photo.title,
@@ -206,8 +118,53 @@ const PhotoGallery = () => {
     }
   };
 
-  const handlePhotoClick = (photo: typeof mockPhotos[0]) => {
+  const handlePhotoClick = (photo: PhotoItem) => {
     setSelectedPhoto(photo);
+  };
+
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const user = JSON.parse(localStorage.getItem('user') || 'null');
+    try {
+      const created = newPhoto.dataUrl
+        ? await apiClient.uploadPhotoLocal({
+            title: newPhoto.title.trim(),
+            dataUrl: newPhoto.dataUrl,
+            description: newPhoto.description?.trim() || undefined,
+            category: newPhoto.category?.trim() || undefined,
+            tags: newPhoto.tags?.trim() || undefined,
+            created_by: user?.username,
+            photographer: user?.username,
+          })
+        : await apiClient.createPhoto({
+            title: newPhoto.title.trim(),
+            url: (newPhoto.url || '').trim(),
+            description: newPhoto.description?.trim() || undefined,
+            category: newPhoto.category?.trim() || undefined,
+            tags: newPhoto.tags?.trim() || undefined,
+            created_by: user?.username,
+            photographer: user?.username,
+          });
+      setPhotos(prev => [created, ...prev]);
+      setIsCreateOpen(false);
+      setNewPhoto({ title: '' });
+    } catch (err) {
+      const msg = (err as Error)?.message || 'Failed to upload photo';
+      alert(msg);
+    }
+  };
+
+  const handleDelete = async (photo: PhotoItem) => {
+    if (!currentUser) return alert('Please log in');
+    if (!confirm('Delete this photo?')) return;
+    try {
+      await apiClient.deletePhoto(photo.id, { userId: currentUser.id, username: currentUser.username, isAdmin });
+      setPhotos(prev => prev.filter(p => p.id !== photo.id));
+      if (selectedPhoto?.id === photo.id) setSelectedPhoto(null);
+    } catch (e) {
+      console.error('Delete photo failed', e);
+      alert('Failed to delete photo');
+    }
   };
 
   return (
@@ -310,10 +267,60 @@ const PhotoGallery = () => {
                     </Button>
                   </div>
 
-                  <Button className="bg-gradient-to-r from-brand-primary to-brand-accent hover:from-brand-primary/90 hover:to-brand-accent/90 text-white">
-                    <Upload className="w-4 h-4 mr-2" />
-                    Upload Photo
-                  </Button>
+                  <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+                    <DialogTrigger asChild>
+                      <Button className="bg-gradient-to-r from-brand-primary to-brand-accent hover:from-brand-primary/90 hover:to-brand-accent/90 text-white">
+                        <Upload className="w-4 h-4 mr-2" />
+                        Upload Photo
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="bg-card border border-border">
+                      <DialogHeader>
+                        <DialogTitle>Upload a new photo</DialogTitle>
+                      </DialogHeader>
+                      <form onSubmit={handleCreate} className="space-y-4">
+                        <div>
+                          <label className="block text-sm mb-1">Title</label>
+                          <Input value={newPhoto.title} onChange={(e) => setNewPhoto({ ...newPhoto, title: e.target.value })} required />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="block text-sm">Select Image</label>
+                          <Input type="file" accept="image/*" onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            const reader = new FileReader();
+                            reader.onload = () => setNewPhoto(p => ({ ...p, dataUrl: String(reader.result) }));
+                            reader.readAsDataURL(file);
+                          }} />
+                          {(newPhoto.dataUrl || newPhoto.url) && (
+                            <div className="mt-2 border rounded-md overflow-hidden">
+                              <img src={newPhoto.dataUrl || newPhoto.url!} alt="Preview" className="max-h-48 w-full object-contain bg-muted" />
+                            </div>
+                          )}
+                          <div className="text-xs text-content-secondary">Or paste an image URL below (optional)</div>
+                          <Input type="url" value={newPhoto.url || ''} onChange={(e) => setNewPhoto({ ...newPhoto, url: e.target.value })} placeholder="https://..." />
+                        </div>
+                        <div>
+                          <label className="block text-sm mb-1">Description</label>
+                          <Textarea rows={3} value={newPhoto.description || ''} onChange={(e) => setNewPhoto({ ...newPhoto, description: e.target.value })} />
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-sm mb-1">Category</label>
+                            <Input value={newPhoto.category || ''} onChange={(e) => setNewPhoto({ ...newPhoto, category: e.target.value })} />
+                          </div>
+                          <div>
+                            <label className="block text-sm mb-1">Tags (comma separated)</label>
+                            <Input value={newPhoto.tags || ''} onChange={(e) => setNewPhoto({ ...newPhoto, tags: e.target.value })} />
+                          </div>
+                        </div>
+                        <div className="flex gap-2 justify-end">
+                          <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}>Cancel</Button>
+                          <Button type="submit">Upload</Button>
+                        </div>
+                      </form>
+                    </DialogContent>
+                  </Dialog>
                 </div>
               </div>
             </CardContent>
@@ -394,6 +401,17 @@ const PhotoGallery = () => {
                       >
                         <Share2 className="w-4 h-4" />
                       </Button>
+                      {(isAdmin || (currentUser && currentUser.username === photo.created_by)) && (
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={(e) => { e.stopPropagation(); handleDelete(photo); }}
+                          className="h-8 w-8 p-0"
+                          title="Delete photo"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      )}
                     </div>
                   </div>
 

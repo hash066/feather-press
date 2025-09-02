@@ -23,6 +23,22 @@ export interface QuoteItem {
   updated_at: string;
 }
 
+export interface PhotoItem {
+  id: number;
+  title: string;
+  url: string;
+  description?: string;
+  photographer?: string; // display name
+  created_by?: string;   // username
+  category?: string;
+  tags?: string;
+  likes?: number;
+  views?: number;
+  downloads?: number;
+  created_at: string;
+  updated_at: string;
+}
+
 class ApiClient {
   private baseUrl: string;
 
@@ -111,6 +127,35 @@ class ApiClient {
   // Comments API
   async getComments(postId: number): Promise<Array<{ id: number; post_id: number; author?: string; text: string; created_at: string }>> {
     return this.request(`/posts/${postId}/comments`);
+  }
+
+  // Photos API
+  async getPhotos(createdBy?: string): Promise<PhotoItem[]> {
+    const query = createdBy ? `?created_by=${encodeURIComponent(createdBy)}` : '';
+    return this.request<PhotoItem[]>(`/photos${query}`);
+  }
+
+  async createPhoto(data: { title: string; url: string; description?: string; created_by?: string; category?: string; tags?: string; photographer?: string; }): Promise<PhotoItem> {
+    return this.request<PhotoItem>('/photos', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async uploadPhotoLocal(data: { title: string; dataUrl: string; description?: string; created_by?: string; category?: string; tags?: string; photographer?: string; }): Promise<PhotoItem> {
+    return this.request<PhotoItem>('/photos/upload', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deletePhoto(id: number, params: { userId?: number; username?: string; isAdmin?: boolean }): Promise<{ message: string }> {
+    const qp: string[] = [];
+    if (params.userId) qp.push(`userId=${params.userId}`);
+    if (params.username) qp.push(`username=${encodeURIComponent(params.username)}`);
+    const admin = params.isAdmin ? `/admin/photos/${id}?` : `/photos/${id}?`;
+    const url = `${admin}${qp.join('&')}`;
+    return this.request<{ message: string }>(url, { method: 'DELETE' });
   }
 
   async addComment(postId: number, text: string, author?: string) {

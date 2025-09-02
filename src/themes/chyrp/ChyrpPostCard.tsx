@@ -29,6 +29,7 @@ interface Post {
   title: string;
   content: string;
   image_url?: string;
+  author?: string;
   created_at: string;
   updated_at: string;
 }
@@ -202,10 +203,10 @@ export const ChyrpPostCard: React.FC<ChyrpPostCardProps> = ({
               <div className="flex items-center space-x-1">
                 <Avatar className="h-6 w-6">
                   <AvatarFallback className="text-xs">
-                    A
+                    {(post.author || 'A').charAt(0).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
-                <span className="font-medium text-foreground/80">Admin</span>
+                <span className="font-medium text-foreground/80">{post.author || 'Admin'}</span>
               </div>
               <div className="flex items-center space-x-1">
                 <Calendar className="w-3 h-3" />

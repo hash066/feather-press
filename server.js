@@ -4,13 +4,37 @@ dotenv.config();
 
 import express from 'express';
 import cors from 'cors';
+import fs from 'fs';
+import path from 'path';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Middleware
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
+// Serve uploaded images
+app.use('/uploads', express.static(path.join(process.cwd(), 'public', 'uploads')));
+
+// Helpers
+async function getUserRole(pool, userId, username) {
+  if (!userId && !username) return null;
+  try {
+    if (userId) {
+      const [rows] = await pool.execute('SELECT role FROM users WHERE id = ?', [userId]);
+      if (rows.length) return rows[0].role;
+    }
+    if (username) {
+      const [rows] = await pool.execute('SELECT role FROM users WHERE username = ?', [username]);
+      if (rows.length) return rows[0].role;
+    }
+    if (!rows.length) return null;
+    return null;
+  } catch {
+    return null;
+  }
+}
 
 // Test database connection on startup
 app.use(async (req, res, next) => {
@@ -90,6 +114,121 @@ app.post('/api/quotes', async (req, res) => {
   }
 });
 
+// Photos API
+// List photos (optional filter by created_by)
+app.get('/api/photos', async (req, res) => {
+  try {
+    const { pool } = await import('./src/lib/mysqlClient.js');
+    const { created_by } = req.query;
+    const [rows] = created_by
+      ? await pool.execute('SELECT * FROM photos WHERE created_by = ? ORDER BY created_at DESC', [created_by])
+      : await pool.execute('SELECT * FROM photos ORDER BY created_at DESC');
+    res.json(rows);
+  } catch (error) {
+    console.error('Error fetching photos:', error);
+    res.status(500).json({ error: 'Failed to fetch photos' });
+  }
+});
+
+// Create photo
+app.post('/api/photos', async (req, res) => {
+  try {
+    const { pool } = await import('./src/lib/mysqlClient.js');
+    const { title, url, description, created_by, category, tags, photographer } = req.body;
+    if (!title || !url) return res.status(400).json({ error: 'Title and url are required' });
+    const [result] = await pool.execute(
+      'INSERT INTO photos (title, url, description, created_by, category, tags, photographer) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [title, url, description || null, created_by || null, category || null, tags || null, photographer || null]
+    );
+    const [rows] = await pool.execute('SELECT * FROM photos WHERE id = ?', [result.insertId]);
+    res.status(201).json(rows[0]);
+  } catch (error) {
+    console.error('Error creating photo:', error);
+    res.status(500).json({ error: 'Failed to create photo' });
+  }
+});
+
+// Create photo via local file (base64 data URL)
+app.post('/api/photos/upload', async (req, res) => {
+  try {
+    const { pool } = await import('./src/lib/mysqlClient.js');
+    const { title, dataUrl, description, created_by, category, tags, photographer } = req.body;
+    if (!title || !dataUrl) return res.status(400).json({ error: 'Title and dataUrl are required' });
+
+    // Parse data URL (accept any image/* mime)
+    const idx = dataUrl.indexOf(',');
+    if (idx === -1) return res.status(400).json({ error: 'Invalid image data' });
+    const header = dataUrl.substring(0, idx); // e.g., data:image/png;base64
+    const base64 = dataUrl.substring(idx + 1);
+    if (!/^data:image\/[a-zA-Z0-9.+-]+;base64$/i.test(header)) {
+      return res.status(400).json({ error: 'Unsupported image format' });
+    }
+    const mime = header.slice(5, header.indexOf(';')); // image/png
+    const subtype = mime.split('/')[1].toLowerCase();
+    const ext = subtype === 'jpeg' ? 'jpg' : subtype;
+    const buffer = Buffer.from(base64, 'base64');
+
+    // Ensure uploads directory
+    const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
+    fs.mkdirSync(uploadsDir, { recursive: true });
+
+    const filename = `photo_${Date.now()}.${ext}`;
+    const fullPath = path.join(uploadsDir, filename);
+    fs.writeFileSync(fullPath, buffer);
+
+    const url = `/uploads/${filename}`;
+    const [result] = await pool.execute(
+      'INSERT INTO photos (title, url, description, created_by, category, tags, photographer) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [title, url, description || null, created_by || null, category || null, tags || null, photographer || null]
+    );
+    const [rows] = await pool.execute('SELECT * FROM photos WHERE id = ?', [result.insertId]);
+    res.status(201).json(rows[0]);
+  } catch (error) {
+    console.error('Error uploading photo:', error);
+    res.status(500).json({ error: 'Failed to upload photo' });
+  }
+});
+// Delete photo (owner or admin)
+app.delete('/api/photos/:id', async (req, res) => {
+  try {
+    const { pool } = await import('./src/lib/mysqlClient.js');
+    const { id } = req.params;
+    const { userId, username } = req.query;
+    const role = await getUserRole(pool, userId, username);
+    if (role === 'admin') {
+      const [result] = await pool.execute('DELETE FROM photos WHERE id = ?', [id]);
+      if (result.affectedRows === 0) return res.status(404).json({ error: 'Photo not found' });
+      return res.json({ message: 'Photo deleted' });
+    }
+    if (!username) return res.status(400).json({ error: 'username is required' });
+    const [rows] = await pool.execute('SELECT created_by FROM photos WHERE id = ?', [id]);
+    if (!rows.length) return res.status(404).json({ error: 'Photo not found' });
+    if ((rows[0].created_by || '') !== String(username)) return res.status(403).json({ error: 'Not allowed' });
+    const [result] = await pool.execute('DELETE FROM photos WHERE id = ? AND created_by = ?', [id, username]);
+    if (result.affectedRows === 0) return res.status(404).json({ error: 'Photo not found' });
+    res.json({ message: 'Photo deleted' });
+  } catch (e) {
+    console.error('Delete photo failed', e);
+    res.status(500).json({ error: 'Failed to delete photo' });
+  }
+});
+
+// Admin-only delete photo
+app.delete('/api/admin/photos/:id', async (req, res) => {
+  try {
+    const { pool } = await import('./src/lib/mysqlClient.js');
+    const { id } = req.params;
+    const { userId, username } = req.query;
+    const role = await getUserRole(pool, userId, username);
+    if (role !== 'admin' && String(username).toLowerCase() !== 'admin') return res.status(403).json({ error: 'Admin access required' });
+    const [result] = await pool.execute('DELETE FROM photos WHERE id = ?', [id]);
+    if (result.affectedRows === 0) return res.status(404).json({ error: 'Photo not found' });
+    res.json({ message: 'Photo deleted' });
+  } catch (e) {
+    console.error('Admin delete photo failed', e);
+    res.status(500).json({ error: 'Failed to delete photo' });
+  }
+});
 // Routes
 
 // Get all posts
@@ -184,13 +323,26 @@ app.delete('/api/posts/:id', async (req, res) => {
   try {
     const { pool } = await import('./src/lib/mysqlClient.js');
     const { id } = req.params;
+    const { userId, username } = req.query; // username of requester (for ownership)
     
-    const [result] = await pool.execute('DELETE FROM posts WHERE id = ?', [id]);
-    
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ error: 'Post not found' });
+    // If admin, allow delete of any post
+    const role = await getUserRole(pool, userId, username);
+    if (role === 'admin') {
+      const [result] = await pool.execute('DELETE FROM posts WHERE id = ?', [id]);
+      if (result.affectedRows === 0) return res.status(404).json({ error: 'Post not found' });
+      return res.json({ message: 'Post deleted successfully' });
     }
     
+    // Non-admin: only delete own post (match by author username)
+    if (!username) return res.status(400).json({ error: 'username is required' });
+    const [rows] = await pool.execute('SELECT author FROM posts WHERE id = ?', [id]);
+    if (!rows.length) return res.status(404).json({ error: 'Post not found' });
+    if ((rows[0].author || '') !== String(username)) {
+      return res.status(403).json({ error: 'Not allowed to delete this post' });
+    }
+    
+    const [result] = await pool.execute('DELETE FROM posts WHERE id = ? AND author = ?', [id, username]);
+    if (result.affectedRows === 0) return res.status(404).json({ error: 'Post not found' });
     res.json({ message: 'Post deleted successfully' });
   } catch (error) {
     console.error('Error deleting post:', error);
@@ -225,6 +377,107 @@ app.post('/api/posts/:id/unlike', async (req, res) => {
   } catch (error) {
     console.error('Error unliking post:', error);
     res.status(500).json({ error: 'Failed to unlike post' });
+  }
+});
+
+// Admin-only delete endpoints
+app.delete('/api/admin/posts/:id', async (req, res) => {
+  try {
+    const { pool } = await import('./src/lib/mysqlClient.js');
+    const { id } = req.params;
+    const { userId, username } = req.query;
+    const role = await getUserRole(pool, userId, username);
+    if (role !== 'admin' && String(username).toLowerCase() !== 'admin') return res.status(403).json({ error: 'Admin access required' });
+    const [result] = await pool.execute('DELETE FROM posts WHERE id = ?', [id]);
+    if (result.affectedRows === 0) return res.status(404).json({ error: 'Post not found' });
+    res.json({ message: 'Post deleted' });
+  } catch (e) {
+    console.error('Admin delete post failed', e);
+    res.status(500).json({ error: 'Failed to delete post' });
+  }
+});
+
+// Quotes delete (owner or admin)
+app.delete('/api/quotes/:id', async (req, res) => {
+  try {
+    const { pool } = await import('./src/lib/mysqlClient.js');
+    const { id } = req.params;
+    const { userId, username } = req.query;
+    const role = await getUserRole(pool, userId);
+    if (role === 'admin') {
+      const [result] = await pool.execute('DELETE FROM quotes WHERE id = ?', [id]);
+      if (result.affectedRows === 0) return res.status(404).json({ error: 'Quote not found' });
+      return res.json({ message: 'Quote deleted' });
+    }
+    if (!username) return res.status(400).json({ error: 'username is required' });
+    const [rows] = await pool.execute('SELECT created_by FROM quotes WHERE id = ?', [id]);
+    if (!rows.length) return res.status(404).json({ error: 'Quote not found' });
+    if ((rows[0].created_by || '') !== String(username)) return res.status(403).json({ error: 'Not allowed' });
+    const [result] = await pool.execute('DELETE FROM quotes WHERE id = ? AND created_by = ?', [id, username]);
+    if (result.affectedRows === 0) return res.status(404).json({ error: 'Quote not found' });
+    res.json({ message: 'Quote deleted' });
+  } catch (e) {
+    console.error('Delete quote failed', e);
+    res.status(500).json({ error: 'Failed to delete quote' });
+  }
+});
+
+// Admin-only delete quote
+app.delete('/api/admin/quotes/:id', async (req, res) => {
+  try {
+    const { pool } = await import('./src/lib/mysqlClient.js');
+    const { id } = req.params;
+    const { userId } = req.query;
+    const role = await getUserRole(pool, userId);
+    if (role !== 'admin') return res.status(403).json({ error: 'Admin access required' });
+    const [result] = await pool.execute('DELETE FROM quotes WHERE id = ?', [id]);
+    if (result.affectedRows === 0) return res.status(404).json({ error: 'Quote not found' });
+    res.json({ message: 'Quote deleted' });
+  } catch (e) {
+    console.error('Admin delete quote failed', e);
+    res.status(500).json({ error: 'Failed to delete quote' });
+  }
+});
+
+// Delete comment (owner or admin)
+app.delete('/api/comments/:id', async (req, res) => {
+  try {
+    const { pool } = await import('./src/lib/mysqlClient.js');
+    const { id } = req.params;
+    const { userId, username } = req.query;
+    const role = await getUserRole(pool, userId);
+    if (role === 'admin') {
+      const [result] = await pool.execute('DELETE FROM comments WHERE id = ?', [id]);
+      if (result.affectedRows === 0) return res.status(404).json({ error: 'Comment not found' });
+      return res.json({ message: 'Comment deleted' });
+    }
+    if (!username) return res.status(400).json({ error: 'username is required' });
+    const [rows] = await pool.execute('SELECT author FROM comments WHERE id = ?', [id]);
+    if (!rows.length) return res.status(404).json({ error: 'Comment not found' });
+    if ((rows[0].author || '') !== String(username)) return res.status(403).json({ error: 'Not allowed' });
+    const [result] = await pool.execute('DELETE FROM comments WHERE id = ? AND author = ?', [id, username]);
+    if (result.affectedRows === 0) return res.status(404).json({ error: 'Comment not found' });
+    res.json({ message: 'Comment deleted' });
+  } catch (e) {
+    console.error('Delete comment failed', e);
+    res.status(500).json({ error: 'Failed to delete comment' });
+  }
+});
+
+// Admin-only delete comment
+app.delete('/api/admin/comments/:id', async (req, res) => {
+  try {
+    const { pool } = await import('./src/lib/mysqlClient.js');
+    const { id } = req.params;
+    const { userId } = req.query;
+    const role = await getUserRole(pool, userId);
+    if (role !== 'admin') return res.status(403).json({ error: 'Admin access required' });
+    const [result] = await pool.execute('DELETE FROM comments WHERE id = ?', [id]);
+    if (result.affectedRows === 0) return res.status(404).json({ error: 'Comment not found' });
+    res.json({ message: 'Comment deleted' });
+  } catch (e) {
+    console.error('Admin delete comment failed', e);
+    res.status(500).json({ error: 'Failed to delete comment' });
   }
 });
 
