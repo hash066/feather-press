@@ -11,7 +11,8 @@ const CreatePost = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     title: "",
-    content: ""
+    content: "",
+    author: ""
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState("");
@@ -33,9 +34,12 @@ const CreatePost = () => {
     setMessage("");
     
     try {
-      await apiClient.createPost(formData.title, formData.content);
+      const currentUser = JSON.parse(localStorage.getItem('user') || 'null');
+      const fallbackAuthor = currentUser?.username;
+      const author = formData.author?.trim() || fallbackAuthor;
+      await apiClient.createPost(formData.title, formData.content, undefined, author);
       setMessage("Post created successfully!");
-      setFormData({ title: "", content: "" });
+      setFormData({ title: "", content: "", author: "" });
       // Navigate to home page after successful creation
       setTimeout(() => {
         navigate("/");
@@ -175,8 +179,19 @@ const CreatePost = () => {
                 className="w-full"
               />
             </div>
-
-
+            {/* Author Field */}
+            <div className="space-y-2">
+              <label htmlFor="author" className="text-sm font-medium text-content-primary">
+                Author (defaults to logged-in username)
+              </label>
+              <Input
+                id="author"
+                placeholder="Enter author username (optional)"
+                value={formData.author}
+                onChange={(e) => handleInputChange("author", e.target.value)}
+                className="w-full"
+              />
+            </div>
 
             {/* Content Field */}
             <div className="space-y-2">

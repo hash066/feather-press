@@ -106,12 +106,12 @@ const PageNavigation = () => {
               <User className="w-4 h-4 text-gray-600 group-hover:text-gray-800 transition-colors duration-300" />
             </Button>
             
-            {/* New Post Button */}
+            {/* Me Button */}
             <Button 
               className="bg-gradient-to-r from-yellow-500 to-green-600 hover:from-yellow-600 hover:to-green-700 text-white font-medium px-4 py-2 rounded-lg transition-all duration-300"
-              onClick={() => navigate('/create-post')}
+              onClick={() => navigate('/me')}
             >
-              New Post
+              Me
             </Button>
             
             {/* Mobile Menu Button */}

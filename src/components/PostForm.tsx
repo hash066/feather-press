@@ -20,7 +20,9 @@ export default function PostForm() {
     setMessage("");
     
     try {
-      await apiClient.createPost(title, content, imageUrl || undefined);
+      const currentUser = JSON.parse(localStorage.getItem('user') || 'null');
+      const author = currentUser?.username;
+      await apiClient.createPost(title, content, imageUrl || undefined, author);
       setMessage("Post created successfully!");
       setTitle("");
       setContent("");

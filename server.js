@@ -24,13 +24,55 @@ app.use(async (req, res, next) => {
   }
 });
 
+// Quotes API
+// List quotes (optional filter by created_by)
+app.get('/api/quotes', async (req, res) => {
+  try {
+    const { pool } = await import('./src/lib/mysqlClient.js');
+    const { created_by } = req.query;
+    const [rows] = created_by
+      ? await pool.execute('SELECT * FROM quotes WHERE created_by = ? ORDER BY created_at DESC', [created_by])
+      : await pool.execute('SELECT * FROM quotes ORDER BY created_at DESC');
+    res.json(rows);
+  } catch (error) {
+    console.error('Error fetching quotes:', error);
+    res.status(500).json({ error: 'Failed to fetch quotes' });
+  }
+});
+
+// Create quote
+app.post('/api/quotes', async (req, res) => {
+  try {
+    const { pool } = await import('./src/lib/mysqlClient.js');
+    const { text, author, created_by, category, tags } = req.body;
+    if (!text) {
+      return res.status(400).json({ error: 'Quote text is required' });
+    }
+    const [result] = await pool.execute(
+      'INSERT INTO quotes (text, author, created_by, category, tags) VALUES (?, ?, ?, ?, ?)',
+      [text, author || null, created_by || null, category || null, tags || null]
+    );
+    const [rows] = await pool.execute('SELECT * FROM quotes WHERE id = ?', [result.insertId]);
+    res.status(201).json(rows[0]);
+  } catch (error) {
+    console.error('Error creating quote:', error);
+    res.status(500).json({ error: 'Failed to create quote' });
+  }
+});
+
 // Routes
 
 // Get all posts
 app.get('/api/posts', async (req, res) => {
   try {
     const { pool } = await import('./src/lib/mysqlClient.js');
-    const [rows] = await pool.execute('SELECT * FROM posts ORDER BY created_at DESC');
+    const { author } = req.query;
+    if (author) {
+      console.log('[GET /api/posts] Filtering by author:', author);
+    }
+    const [rows] = author
+      ? await pool.execute('SELECT * FROM posts WHERE author = ? ORDER BY created_at DESC', [author])
+      : await pool.execute('SELECT * FROM posts ORDER BY created_at DESC');
     res.json(rows);
   } catch (error) {
     console.error('Error fetching posts:', error);
@@ -60,15 +102,15 @@ app.get('/api/posts/:id', async (req, res) => {
 app.post('/api/posts', async (req, res) => {
   try {
     const { pool } = await import('./src/lib/mysqlClient.js');
-    const { title, content, image_url } = req.body;
+    const { title, content, image_url, author } = req.body;
     
     if (!title || !content) {
       return res.status(400).json({ error: 'Title and content are required' });
     }
     
     const [result] = await pool.execute(
-      'INSERT INTO posts (title, content, image_url) VALUES (?, ?, ?)',
-      [title, content, image_url || null]
+      'INSERT INTO posts (title, content, author, image_url) VALUES (?, ?, ?, ?)',
+      [title, content, author || null, image_url || null]
     );
     
     const [newPost] = await pool.execute('SELECT * FROM posts WHERE id = ?', [result.insertId]);
@@ -123,6 +165,18 @@ app.delete('/api/posts/:id', async (req, res) => {
   } catch (error) {
     console.error('Error deleting post:', error);
     res.status(500).json({ error: 'Failed to delete post' });
+  }
+});
+
+// Danger: Delete ALL posts (development utility)
+app.delete('/api/posts', async (req, res) => {
+  try {
+    const { pool } = await import('./src/lib/mysqlClient.js');
+    await pool.execute('DELETE FROM posts');
+    res.json({ message: 'All posts deleted' });
+  } catch (error) {
+    console.error('Error deleting all posts:', error);
+    res.status(500).json({ error: 'Failed to delete all posts' });
   }
 });
 

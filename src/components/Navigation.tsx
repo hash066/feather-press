@@ -59,6 +59,7 @@ export const Navigation = () => {
             {[
               { name: 'Home', href: '/' },
               { name: 'Blog', href: '/blog' },
+              { name: 'Quotes', href: '/quotes' },
               { name: 'Gallery', href: '/gallery' },
               { name: 'About', href: '/about' },
               { name: 'Contact', href: '/contact' }
@@ -116,14 +117,14 @@ export const Navigation = () => {
               </div>
             )}
             
-            {/* Enhanced New Post Button */}
+            {/* Me Button */}
             <Button 
               variant="default" 
               size="lg" 
               className="relative overflow-hidden group bg-gray-800 hover:bg-gray-900 text-white"
-              onClick={() => navigate('/create-post')}
+              onClick={() => navigate('/me')}
             >
-              <span className="relative z-10 font-medium">New Post</span>
+              <span className="relative z-10 font-medium">Me</span>
             </Button>
             
             {/* Mobile Menu Button */}
@@ -150,6 +151,7 @@ export const Navigation = () => {
             {[
               { name: 'Home', href: '/' },
               { name: 'Blog', href: '/blog' },
+              { name: 'Quotes', href: '/quotes' },
               { name: 'Gallery', href: '/gallery' },
               { name: 'About', href: '/about' },
               { name: 'Contact', href: '/contact' }
