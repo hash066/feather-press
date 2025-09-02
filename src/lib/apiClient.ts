@@ -1,5 +1,13 @@
 // API client for MySQL backend
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
+export const API_ORIGIN = (() => {
+  try {
+    const u = new URL(API_BASE_URL);
+    return `${u.protocol}//${u.host}`;
+  } catch {
+    return 'http://localhost:3001';
+  }
+})();
 
 export interface Post {
   id: number;
@@ -117,6 +125,64 @@ class ApiClient {
     return this.request(`/posts/${postId}/comments`, {
       method: 'POST',
       body: JSON.stringify({ text, author }),
+    });
+  }
+
+  // Uploads API
+  async uploadImages(files: File[]): Promise<{ files: Array<{ filename: string; url: string; mimetype: string; size: number }> }> {
+    const form = new FormData();
+    files.forEach((file) => form.append('files', file));
+    const response = await fetch(`${this.baseUrl}/upload`, {
+      method: 'POST',
+      body: form,
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+    }
+    return response.json();
+  }
+
+  // Galleries API
+  async getGalleries(createdBy?: string): Promise<Array<{ id: number; title: string; description?: string; created_by?: string; images: string; created_at: string }>> {
+    const query = createdBy ? `?created_by=${encodeURIComponent(createdBy)}` : '';
+    return this.request(`/galleries${query}`);
+  }
+
+  async createGallery(params: { title: string; description?: string; created_by?: string; images: Array<{ url: string }> }): Promise<{ id: number } & Record<string, any>> {
+    return this.request('/galleries', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    });
+  }
+
+  async listUploads(): Promise<{ files: Array<{ name: string; url: string; size: number; mtime: number }> }> {
+    return this.request('/uploads');
+  }
+
+  // Videos API
+  async getVideos(createdBy?: string): Promise<Array<{ id: number; title: string; description?: string; created_by?: string; source: string; url: string; created_at: string }>> {
+    const query = createdBy ? `?created_by=${encodeURIComponent(createdBy)}` : '';
+    return this.request(`/videos${query}`);
+  }
+
+  async createVideo(params: { title: string; description?: string; created_by?: string; source: 'upload' | 'url'; url: string }) {
+    return this.request('/videos', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    });
+  }
+
+  // Audios API
+  async getAudios(createdBy?: string): Promise<Array<{ id: number; title: string; description?: string; created_by?: string; source: string; url: string; created_at: string }>> {
+    const query = createdBy ? `?created_by=${encodeURIComponent(createdBy)}` : '';
+    return this.request(`/audios${query}`);
+  }
+
+  async createAudio(params: { title: string; description?: string; created_by?: string; source: 'upload' | 'url'; url: string }) {
+    return this.request('/audios', {
+      method: 'POST',
+      body: JSON.stringify(params),
     });
   }
 

@@ -8,10 +8,16 @@ import Me from '@/pages/Me'
 import CreatePost from '@/pages/CreatePost'
 import CreateGallery from '@/pages/CreateGallery'
 import CreateVideo from '@/pages/CreateVideo'
+import Videos from '@/pages/Videos'
+import CreateAudio from '@/pages/CreateAudio'
+import Audios from '@/pages/Audios'
 import CreateQuote from '@/pages/CreateQuote'
 import Login from '@/pages/Login'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import Quotes from '@/pages/Quotes'
+import PhotoGallery from '@/pages/PhotoGallery'
+import About from '@/pages/About'
+import Contact from '@/pages/Contact'
 
 createRoot(document.getElementById("root")!).render(
   <BrowserRouter>
@@ -19,11 +25,17 @@ createRoot(document.getElementById("root")!).render(
       <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
       <Route path="/blog" element={<ProtectedRoute><ChyrpBlog /></ProtectedRoute>} />
       <Route path="/quotes" element={<ProtectedRoute><Quotes /></ProtectedRoute>} />
+      <Route path="/gallery" element={<ProtectedRoute><PhotoGallery /></ProtectedRoute>} />
+      <Route path="/about" element={<ProtectedRoute><About /></ProtectedRoute>} />
+      <Route path="/contact" element={<ProtectedRoute><Contact /></ProtectedRoute>} />
       <Route path="/me" element={<ProtectedRoute><Me /></ProtectedRoute>} />
       <Route path="/login" element={<Login />} />
       <Route path="/create-post" element={<ProtectedRoute><CreatePost /></ProtectedRoute>} />
       <Route path="/create-gallery" element={<ProtectedRoute><CreateGallery /></ProtectedRoute>} />
       <Route path="/create-video" element={<ProtectedRoute><CreateVideo /></ProtectedRoute>} />
+      <Route path="/videos" element={<ProtectedRoute><Videos /></ProtectedRoute>} />
+      <Route path="/create-audio" element={<ProtectedRoute><CreateAudio /></ProtectedRoute>} />
+      <Route path="/audios" element={<ProtectedRoute><Audios /></ProtectedRoute>} />
       <Route path="/create-quote" element={<ProtectedRoute><CreateQuote /></ProtectedRoute>} />
       <Route path="*" element={<Index />} />
     </Routes>

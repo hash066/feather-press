@@ -21,6 +21,9 @@ interface UserContentDashboardProps {
 export const UserContentDashboard: React.FC<UserContentDashboardProps> = ({ userId }) => {
   const [posts, setPosts] = useState<Post[]>([]);
   const [quoteCount, setQuoteCount] = useState<number>(0);
+  const [galleryCount, setGalleryCount] = useState<number>(0);
+  const [videoCount, setVideoCount] = useState<number>(0);
+  const [audioCount, setAudioCount] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -39,9 +42,15 @@ export const UserContentDashboard: React.FC<UserContentDashboardProps> = ({ user
         console.log('[Me] fetching posts for author:', author);
         const data = await apiClient.getPosts(author);
         const quotes = await apiClient.getQuotes(author);
+        const galleries = await apiClient.getGalleries(author);
+        const videos = await apiClient.getVideos(author);
+        const audios = await apiClient.getAudios(author);
         console.log('[Me] fetched', data.length, 'posts');
         setPosts(data);
         setQuoteCount(quotes.length);
+        setGalleryCount(galleries.length);
+        setVideoCount(videos.length);
+        setAudioCount(audios.length);
       } catch (err) {
         console.error("Fetch error:", err);
       } finally {
@@ -85,7 +94,7 @@ export const UserContentDashboard: React.FC<UserContentDashboardProps> = ({ user
       title: 'Photo Gallery',
       icon: Image,
       color: 'from-amber-500 to-orange-500',
-      count: 0, // You can implement gallery counting later
+      count: galleryCount,
       description: 'Your image collections and albums'
     },
     {
@@ -93,8 +102,16 @@ export const UserContentDashboard: React.FC<UserContentDashboardProps> = ({ user
       title: 'Videos',
       icon: Video,
       color: 'from-yellow-400 to-amber-600',
-      count: 0, // You can implement video counting later
+      count: videoCount,
       description: 'Your video content and tutorials'
+    },
+    {
+      id: 'audio',
+      title: 'Audios',
+      icon: Quote,
+      color: 'from-amber-500 to-yellow-500',
+      count: audioCount,
+      description: 'Your audio content and podcasts'
     },
     {
       id: 'quote',

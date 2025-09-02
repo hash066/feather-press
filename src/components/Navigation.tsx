@@ -61,6 +61,8 @@ export const Navigation = () => {
               { name: 'Blog', href: '/blog' },
               { name: 'Quotes', href: '/quotes' },
               { name: 'Gallery', href: '/gallery' },
+              { name: 'Videos', href: '/videos' },
+              { name: 'Audios', href: '/audios' },
               { name: 'About', href: '/about' },
               { name: 'Contact', href: '/contact' }
             ].map((item, index) => (
@@ -153,6 +155,8 @@ export const Navigation = () => {
               { name: 'Blog', href: '/blog' },
               { name: 'Quotes', href: '/quotes' },
               { name: 'Gallery', href: '/gallery' },
+              { name: 'Videos', href: '/videos' },
+              { name: 'Audios', href: '/audios' },
               { name: 'About', href: '/about' },
               { name: 'Contact', href: '/contact' }
             ].map((item, index) => (

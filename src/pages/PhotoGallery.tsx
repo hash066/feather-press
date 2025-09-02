@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,177 +15,125 @@ import {
   Grid3X3, 
   List, 
   Upload, 
-  Heart, 
   Download, 
   Share2, 
-  Eye,
   Calendar,
-  User,
-  Tag,
-  Filter,
-  Sparkles,
   Camera,
   Image as ImageIcon
 } from 'lucide-react';
 import { Navigation } from '@/components/Navigation';
+import { apiClient, API_ORIGIN } from '@/lib/apiClient';
 import { useScrollAnimation } from '@/hooks/useScrollAnimation';
 import { FloatingShapes, GradientMesh } from '@/components/AnimatedBackground';
 
-// Mock photo data
-const mockPhotos = [
-  {
-    id: 1,
-    title: "Sunset at the Beach",
-    url: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&h=600&fit=crop",
-    description: "Beautiful sunset over the ocean with golden reflections",
-    photographer: "Sarah Wilson",
-    uploadedAt: "2024-01-15",
-    category: "Nature",
-    tags: ["sunset", "beach", "ocean", "golden hour"],
-    likes: 156,
-    downloads: 23,
-    views: 892
-  },
-  {
-    id: 2,
-    title: "Mountain Landscape",
-    url: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&h=600&fit=crop",
-    description: "Snow-capped mountains in the distance with dramatic clouds",
-    photographer: "Mike Johnson",
-    uploadedAt: "2024-01-14",
-    category: "Landscape",
-    tags: ["mountains", "snow", "landscape", "nature"],
-    likes: 234,
-    downloads: 45,
-    views: 1247
-  },
-  {
-    id: 3,
-    title: "City Skyline",
-    url: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&h=600&fit=crop",
-    description: "Modern city architecture with glass and steel",
-    photographer: "Alex Chen",
-    uploadedAt: "2024-01-13",
-    category: "Urban",
-    tags: ["city", "architecture", "urban", "modern"],
-    likes: 189,
-    downloads: 34,
-    views: 756
-  },
-  {
-    id: 4,
-    title: "Forest Path",
-    url: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&h=600&fit=crop",
-    description: "Peaceful forest trail with dappled sunlight",
-    photographer: "Emma Davis",
-    uploadedAt: "2024-01-12",
-    category: "Nature",
-    tags: ["forest", "path", "nature", "trees"],
-    likes: 145,
-    downloads: 28,
-    views: 634
-  },
-  {
-    id: 5,
-    title: "Flower Garden",
-    url: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&h=600&fit=crop",
-    description: "Colorful spring flowers in full bloom",
-    photographer: "Lisa Brown",
-    uploadedAt: "2024-01-11",
-    category: "Nature",
-    tags: ["flowers", "garden", "spring", "colorful"],
-    likes: 267,
-    downloads: 56,
-    views: 1456
-  },
-  {
-    id: 6,
-    title: "Desert Dunes",
-    url: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&h=600&fit=crop",
-    description: "Golden sand dunes stretching to the horizon",
-    photographer: "Tom Wilson",
-    uploadedAt: "2024-01-10",
-    category: "Landscape",
-    tags: ["desert", "dunes", "sand", "golden"],
-    likes: 198,
-    downloads: 41,
-    views: 987
-  },
-  {
-    id: 7,
-    title: "Abstract Art",
-    url: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&h=600&fit=crop",
-    description: "Colorful abstract patterns and shapes",
-    photographer: "David Lee",
-    uploadedAt: "2024-01-09",
-    category: "Art",
-    tags: ["abstract", "art", "colorful", "patterns"],
-    likes: 123,
-    downloads: 19,
-    views: 445
-  },
-  {
-    id: 8,
-    title: "Street Photography",
-    url: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&h=600&fit=crop",
-    description: "Candid moments of urban life",
-    photographer: "Maria Garcia",
-    uploadedAt: "2024-01-08",
-    category: "Urban",
-    tags: ["street", "photography", "urban", "candid"],
-    likes: 178,
-    downloads: 32,
-    views: 723
-  }
-];
+//
 
-const categories = ['All', 'Nature', 'Landscape', 'Urban', 'Art', 'Portrait'];
+const categories = ['All'];
+
+type Gallery = { id: number; title: string; description?: string; created_by?: string; images: string; created_at: string };
+type GalleryImage = { url: string };
+type BlogPost = { id: number; title: string; image_url?: string; created_at: string };
+type UploadFile = { name: string; url: string; size: number; mtime: number };
 
 const PhotoGallery = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [sortBy, setSortBy] = useState<'latest' | 'popular' | 'trending'>('latest');
-  const [likedPhotos, setLikedPhotos] = useState<Set<number>>(new Set());
-  const [selectedPhoto, setSelectedPhoto] = useState<typeof mockPhotos[0] | null>(null);
+  const [selectedPhoto, setSelectedPhoto] = useState<{ title: string; url: string; uploadedAt: string } | null>(null);
+  const [galleries, setGalleries] = useState<Gallery[]>([]);
+  const [posts, setPosts] = useState<BlogPost[]>([]);
+  const [allUploads, setAllUploads] = useState<Array<{ id: string; title: string; url: string; uploadedAt: string }>>([]);
+  const [loading, setLoading] = useState(true);
   const { elementRef, isVisible } = useScrollAnimation(0.1);
 
-  // Filter and sort photos
-  const filteredPhotos = mockPhotos.filter(photo => {
-    const matchesSearch = !searchQuery || 
-      photo.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      photo.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      photo.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
-    
-    const matchesCategory = selectedCategory === 'All' || photo.category === selectedCategory;
-    
+  const normalizeUrl = (raw: string): string => {
+    if (!raw) return '/placeholder.svg';
+    const trimmed = raw.trim();
+    // Treat obviously invalid values as missing
+    if (trimmed === 'null' || trimmed === 'undefined' || /[<>]/.test(trimmed)) {
+      return '/placeholder.svg';
+    }
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return trimmed;
+    if (trimmed.startsWith('/uploads/')) return `${API_ORIGIN}${trimmed}`;
+    if (trimmed.startsWith('uploads/')) return `${API_ORIGIN}/${trimmed}`;
+    // If no extension and not a known path, fallback
+    if (!/\.[a-zA-Z0-9]{2,5}($|\?)/.test(trimmed)) return '/placeholder.svg';
+    return trimmed;
+  };
+
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      try {
+        const results = await Promise.allSettled([
+          apiClient.getGalleries(),
+          apiClient.getPosts(),
+          apiClient.listUploads(),
+        ]);
+
+        const gRes = results[0];
+        const pRes = results[1];
+        const uRes = results[2];
+
+        if (gRes.status === 'fulfilled') setGalleries(gRes.value);
+        if (pRes.status === 'fulfilled') setPosts(pRes.value);
+        if (uRes.status === 'fulfilled') {
+          const uploadPhotos: Array<{ id: string; title: string; url: string; uploadedAt: string }> = ((uRes.value?.files || []) as UploadFile[])
+            .map((f) => ({ id: `upload-${f.name}`, title: f.name, url: normalizeUrl(f.url), uploadedAt: new Date(f.mtime).toISOString() }));
+          setAllUploads(uploadPhotos);
+        } else {
+          setAllUploads([]);
+        }
+      } catch (e) {
+        console.error('Failed to load gallery data:', e);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+
+  // Build a flat list of images from galleries
+  const galleryPhotos: Array<{ id: string; title: string; url: string; uploadedAt: string }> = galleries.flatMap((g) => {
+    let imgs: GalleryImage[] = [];
+    try { imgs = JSON.parse(g.images) as GalleryImage[]; } catch {}
+    const photos = imgs.map((img, idx) => ({ 
+      id: `${g.id}-${idx}`, 
+      title: g.title, 
+      url: normalizeUrl(img.url), 
+      uploadedAt: g.created_at 
+    }));
+    if (photos.length === 0) {
+      photos.push({ id: `${g.id}-0`, title: g.title, url: '/placeholder.svg', uploadedAt: g.created_at });
+    }
+    return photos;
+  });
+
+  const postPhotos: Array<{ id: string; title: string; url: string; uploadedAt: string }> = posts
+    .map((p) => ({
+      id: `post-${p.id}`,
+      title: p.title,
+      url: p.image_url && p.image_url.trim() !== '' ? normalizeUrl(p.image_url) : '/placeholder.svg',
+      uploadedAt: p.created_at,
+    }));
+
+  const allPhotos = [...allUploads, ...galleryPhotos, ...postPhotos];
+
+  const filteredPhotos = allPhotos.filter((photo) => {
+    const matchesSearch = !searchQuery || photo.title.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesCategory = selectedCategory === 'All';
     return matchesSearch && matchesCategory;
   });
 
   const sortedPhotos = [...filteredPhotos].sort((a, b) => {
     switch (sortBy) {
-      case 'popular':
-        return b.views - a.views;
-      case 'trending':
-        return b.likes - a.likes;
       default:
         return new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime();
     }
   });
 
-  const handleLike = (photoId: number) => {
-    setLikedPhotos(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(photoId)) {
-        newSet.delete(photoId);
-      } else {
-        newSet.add(photoId);
-      }
-      return newSet;
-    });
-  };
-
-  const handleDownload = (photo: typeof mockPhotos[0]) => {
+  const handleDownload = (photo: { title: string; url: string }) => {
     // Simulate download
     const link = document.createElement('a');
     link.href = photo.url;
@@ -193,7 +141,7 @@ const PhotoGallery = () => {
     link.click();
   };
 
-  const handleShare = (photo: typeof mockPhotos[0]) => {
+  const handleShare = (photo: { title: string; url: string }) => {
     if (navigator.share) {
       navigator.share({
         title: photo.title,
@@ -206,7 +154,7 @@ const PhotoGallery = () => {
     }
   };
 
-  const handlePhotoClick = (photo: typeof mockPhotos[0]) => {
+  const handlePhotoClick = (photo: { title: string; url: string; uploadedAt: string }) => {
     setSelectedPhoto(photo);
   };
 
@@ -323,7 +271,7 @@ const PhotoGallery = () => {
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center space-x-2">
               <span className="text-sm text-content-secondary">
-                Showing {filteredPhotos.length} of {mockPhotos.length} photos
+                Showing {filteredPhotos.length} of {allPhotos.length} photos
               </span>
               {(searchQuery || selectedCategory !== 'All') && (
                 <Badge variant="secondary" className="text-xs">
@@ -352,6 +300,7 @@ const PhotoGallery = () => {
                   <img
                     src={photo.url}
                     alt={photo.title}
+                    onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/placeholder.svg'; }}
                     className={`w-full object-cover transition-transform duration-300 group-hover:scale-105 ${
                       viewMode === 'grid' ? 'h-64' : 'h-32'
                     }`}
@@ -361,17 +310,7 @@ const PhotoGallery = () => {
                   {/* Overlay Actions */}
                   <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                     <div className="flex items-center space-x-2">
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleLike(photo.id);
-                        }}
-                        className={`h-8 w-8 p-0 ${likedPhotos.has(photo.id) ? 'text-red-500' : ''}`}
-                      >
-                        <Heart className="w-4 h-4" />
-                      </Button>
+                      
                       <Button
                         variant="secondary"
                         size="sm"
@@ -397,9 +336,7 @@ const PhotoGallery = () => {
                     </div>
                   </div>
 
-                  <Badge className="absolute top-4 left-4 bg-brand-accent text-white">
-                    {photo.category}
-                  </Badge>
+                  
                 </div>
                 
                 <CardContent className="p-4">
@@ -407,53 +344,18 @@ const PhotoGallery = () => {
                     {photo.title}
                   </h3>
                   
-                  {viewMode === 'list' && (
-                    <p className="text-content-secondary mb-3 line-clamp-2 text-sm">
-                      {photo.description}
-                    </p>
-                  )}
+                  
                   
                   <div className="flex items-center justify-between text-sm text-content-secondary">
-                    <div className="flex items-center space-x-1">
-                      <User className="w-4 h-4" />
-                      <span>{photo.photographer}</span>
-                    </div>
                     <div className="flex items-center space-x-1">
                       <Calendar className="w-4 h-4" />
                       <span>{photo.uploadedAt}</span>
                     </div>
                   </div>
                   
-                  <div className="flex items-center justify-between mt-3">
-                    <div className="flex items-center space-x-4 text-sm text-content-secondary">
-                      <div className="flex items-center space-x-1">
-                        <Eye className="w-4 h-4" />
-                        <span>{photo.views}</span>
-                      </div>
-                      <div className="flex items-center space-x-1">
-                        <Heart className="w-4 h-4" />
-                        <span>{photo.likes}</span>
-                      </div>
-                      <div className="flex items-center space-x-1">
-                        <Download className="w-4 h-4" />
-                        <span>{photo.downloads}</span>
-                      </div>
-                    </div>
-                  </div>
                   
-                  <div className="flex flex-wrap gap-1 mt-3">
-                    {photo.tags.slice(0, 3).map((tag) => (
-                      <Badge key={tag} variant="outline" className="text-xs">
-                        <Tag className="w-3 h-3 mr-1" />
-                        {tag}
-                      </Badge>
-                    ))}
-                    {photo.tags.length > 3 && (
-                      <Badge variant="outline" className="text-xs">
-                        +{photo.tags.length - 3}
-                      </Badge>
-                    )}
-                  </div>
+                  
+                  
                 </CardContent>
               </Card>
             ))}
@@ -483,11 +385,7 @@ const PhotoGallery = () => {
 
           {/* Load More Button */}
           {filteredPhotos.length > 0 && (
-            <div className="text-center mt-12">
-              <Button variant="outline" size="lg" className="px-8">
-                Load More Photos
-              </Button>
-            </div>
+            <div className="text-center mt-12"></div>
           )}
         </div>
       </section>
@@ -513,28 +411,14 @@ const PhotoGallery = () => {
             </div>
             <div className="p-6">
               <h2 className="text-2xl font-bold mb-2 text-content-primary">{selectedPhoto.title}</h2>
-              <p className="text-content-secondary mb-4">{selectedPhoto.description}</p>
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center space-x-4 text-sm text-content-secondary">
-                  <div className="flex items-center space-x-1">
-                    <User className="w-4 h-4" />
-                    <span>{selectedPhoto.photographer}</span>
-                  </div>
                   <div className="flex items-center space-x-1">
                     <Calendar className="w-4 h-4" />
                     <span>{selectedPhoto.uploadedAt}</span>
                   </div>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleLike(selectedPhoto.id)}
-                    className={likedPhotos.has(selectedPhoto.id) ? 'text-brand-accent' : ''}
-                  >
-                    <Heart className="w-4 h-4 mr-2" />
-                    {selectedPhoto.likes}
-                  </Button>
                   <Button
                     variant="outline"
                     size="sm"
@@ -552,14 +436,6 @@ const PhotoGallery = () => {
                     Share
                   </Button>
                 </div>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {selectedPhoto.tags.map((tag) => (
-                  <Badge key={tag} variant="secondary">
-                    <Tag className="w-3 h-3 mr-1" />
-                    {tag}
-                  </Badge>
-                ))}
               </div>
             </div>
           </div>

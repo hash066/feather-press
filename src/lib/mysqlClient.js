@@ -73,6 +73,50 @@ export async function initializeDatabase() {
         FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE
       )
     `);
+    // Create galleries table
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS galleries (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        title VARCHAR(255) NOT NULL,
+        description TEXT NULL,
+        created_by VARCHAR(255) NULL,
+        images JSON NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_created_by (created_by),
+        INDEX idx_created_at (created_at)
+      )
+    `);
+    // Create videos table
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS videos (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        title VARCHAR(255) NOT NULL,
+        description TEXT NULL,
+        created_by VARCHAR(255) NULL,
+        source VARCHAR(20) NOT NULL, -- 'upload' or 'url'
+        url TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_videos_created_by (created_by),
+        INDEX idx_videos_created_at (created_at)
+      )
+    `);
+    // Create audios table
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS audios (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        title VARCHAR(255) NOT NULL,
+        description TEXT NULL,
+        created_by VARCHAR(255) NULL,
+        source VARCHAR(20) NOT NULL,
+        url TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_audios_created_by (created_by),
+        INDEX idx_audios_created_at (created_at)
+      )
+    `);
     // Try to add author column if table already existed without it
     try {
       await connection.execute('ALTER TABLE posts ADD COLUMN author VARCHAR(255) NULL');

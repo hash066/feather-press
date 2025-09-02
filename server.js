@@ -4,6 +4,9 @@ dotenv.config();
 
 import express from 'express';
 import cors from 'cors';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -11,6 +14,33 @@ const PORT = process.env.PORT || 3001;
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+// Static uploads directory
+const uploadsDir = path.resolve('public', 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+app.use('/uploads', express.static(uploadsDir));
+
+// Multer setup for image and video uploads
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, uploadsDir);
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    const ext = path.extname(file.originalname) || '.jpg';
+    cb(null, `${uniqueSuffix}${ext}`);
+  }
+});
+const upload = multer({
+  storage,
+  fileFilter: (req, file, cb) => {
+    if (/^image\//.test(file.mimetype) || /^video\//.test(file.mimetype) || /^audio\//.test(file.mimetype)) return cb(null, true);
+    cb(new Error('Only image/video/audio uploads are allowed'));
+  },
+  limits: { fileSize: 200 * 1024 * 1024 }
+});
 
 // Test database connection on startup
 app.use(async (req, res, next) => {
@@ -247,7 +277,12 @@ app.get('/api', (req, res) => {
     message: 'Feather Press API is running',
     endpoints: {
       posts: '/api/posts',
-      health: '/api/health'
+      galleries: '/api/galleries',
+      videos: '/api/videos',
+      audios: '/api/audios',
+      health: '/api/health',
+      upload: '/api/upload',
+      uploads_list: '/api/uploads'
     }
   });
 });
@@ -255,6 +290,116 @@ app.get('/api', (req, res) => {
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', message: 'Server is running' });
+});
+
+// Image/Video upload endpoint with explicit Multer error handling
+app.post('/api/upload', (req, res) => {
+  upload.array('files', 10)(req, res, (err) => {
+    if (err) {
+      console.error('Upload error:', err);
+      return res.status(400).json({ error: err.message || 'Upload failed' });
+    }
+    try {
+      const files = (req.files || []).map((f) => ({
+        filename: f.filename,
+        url: `/uploads/${f.filename}`,
+        mimetype: f.mimetype,
+        size: f.size
+      }));
+      res.status(201).json({ files });
+    } catch (e) {
+      console.error('Upload processing error:', e);
+      res.status(500).json({ error: 'Upload processing failed' });
+    }
+  });
+});
+
+// List uploaded files
+app.get('/api/uploads', async (req, res) => {
+  try {
+    const dir = uploadsDir;
+    const entries = await fs.promises.readdir(dir);
+    const detailed = await Promise.all(entries.map(async (name) => {
+      const p = path.join(dir, name);
+      const st = await fs.promises.stat(p);
+      return { name, url: `/uploads/${name}`, size: st.size, mtime: st.mtimeMs, isFile: st.isFile() };
+    }));
+    const files = detailed
+      .filter((d) => d.isFile)
+      .sort((a, b) => b.mtime - a.mtime);
+    res.json({ files });
+  } catch (err) {
+    console.error('List uploads error:', err);
+    res.status(500).json({ error: 'Failed to list uploads' });
+  }
+});
+
+// Videos API
+app.get('/api/videos', async (req, res) => {
+  try {
+    const { pool } = await import('./src/lib/mysqlClient.js');
+    const { created_by } = req.query;
+    const [rows] = created_by
+      ? await pool.execute('SELECT * FROM videos WHERE created_by = ? ORDER BY created_at DESC', [created_by])
+      : await pool.execute('SELECT * FROM videos ORDER BY created_at DESC');
+    res.json(rows);
+  } catch (error) {
+    console.error('Error fetching videos:', error);
+    res.status(500).json({ error: 'Failed to fetch videos' });
+  }
+});
+
+app.post('/api/videos', async (req, res) => {
+  try {
+    const { pool } = await import('./src/lib/mysqlClient.js');
+    const { title, description, created_by, source, url } = req.body;
+    if (!title || !source || !url) {
+      return res.status(400).json({ error: 'Title, source, and url are required' });
+    }
+    const [result] = await pool.execute(
+      'INSERT INTO videos (title, description, created_by, source, url) VALUES (?, ?, ?, ?, ?)',
+      [title, description || null, created_by || null, source, url]
+    );
+    const [rows] = await pool.execute('SELECT * FROM videos WHERE id = ?', [result.insertId]);
+    res.status(201).json(rows[0]);
+  } catch (error) {
+    console.error('Error creating video:', error);
+    res.status(500).json({ error: 'Failed to create video' });
+  }
+});
+
+// Audios API
+app.get('/api/audios', async (req, res) => {
+  try {
+    const { pool } = await import('./src/lib/mysqlClient.js');
+    const { created_by } = req.query;
+    const [rows] = created_by
+      ? await pool.execute('SELECT * FROM audios WHERE created_by = ? ORDER BY created_at DESC', [created_by])
+      : await pool.execute('SELECT * FROM audios ORDER BY created_at DESC');
+    res.json(rows);
+  } catch (error) {
+    console.error('Error fetching audios:', error);
+    res.status(500).json({ error: 'Failed to fetch audios' });
+  }
+});
+
+app.post('/api/audios', async (req, res) => {
+  try {
+    const { pool } = await import('./src/lib/mysqlClient.js');
+    const { title, description, created_by, source, url } = req.body;
+    if (!title || !source || !url) {
+      return res.status(400).json({ error: 'Title, source, and url are required' });
+    }
+    const [result] = await pool.execute(
+      'INSERT INTO audios (title, description, created_by, source, url) VALUES (?, ?, ?, ?, ?)',
+      [title, description || null, created_by || null, source, url]
+    );
+    const [rows] = await pool.execute('SELECT * FROM audios WHERE id = ?', [result.insertId]);
+    res.status(201).json(rows[0]);
+  } catch (error) {
+    console.error('Error creating audio:', error);
+    res.status(500).json({ error: 'Failed to create audio' });
+  }
 });
 
 // Authentication routes
@@ -329,6 +474,41 @@ app.post('/api/auth/register', async (req, res) => {
   } catch (error) {
     console.error('Registration error:', error);
     res.status(500).json({ error: 'Registration failed' });
+  }
+});
+
+// Galleries API
+app.get('/api/galleries', async (req, res) => {
+  try {
+    const { pool } = await import('./src/lib/mysqlClient.js');
+    const { created_by } = req.query;
+    const [rows] = created_by
+      ? await pool.execute('SELECT * FROM galleries WHERE created_by = ? ORDER BY created_at DESC', [created_by])
+      : await pool.execute('SELECT * FROM galleries ORDER BY created_at DESC');
+    res.json(rows);
+  } catch (error) {
+    console.error('Error fetching galleries:', error);
+    res.status(500).json({ error: 'Failed to fetch galleries' });
+  }
+});
+
+app.post('/api/galleries', async (req, res) => {
+  try {
+    const { pool } = await import('./src/lib/mysqlClient.js');
+    const { title, description, created_by, images } = req.body;
+    if (!title || !Array.isArray(images) || images.length === 0) {
+      return res.status(400).json({ error: 'Title and at least one image are required' });
+    }
+    const imagesJson = JSON.stringify(images);
+    const [result] = await pool.execute(
+      'INSERT INTO galleries (title, description, created_by, images) VALUES (?, ?, ?, ?)',
+      [title, description || null, created_by || null, imagesJson]
+    );
+    const [rows] = await pool.execute('SELECT * FROM galleries WHERE id = ?', [result.insertId]);
+    res.status(201).json(rows[0]);
+  } catch (error) {
+    console.error('Error creating gallery:', error);
+    res.status(500).json({ error: 'Failed to create gallery' });
   }
 });
 
