@@ -73,6 +73,24 @@ export async function initializeDatabase() {
         FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE
       )
     `);
+    // Create photos table
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS photos (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        title VARCHAR(255) NOT NULL,
+        url VARCHAR(500) NOT NULL,
+        description TEXT NULL,
+        photographer VARCHAR(255) NULL,
+        created_by VARCHAR(255) NULL,
+        category VARCHAR(255) NULL,
+        tags VARCHAR(500) NULL,
+        likes INT NOT NULL DEFAULT 0,
+        views INT NOT NULL DEFAULT 0,
+        downloads INT NOT NULL DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      )
+    `);
     // Try to add author column if table already existed without it
     try {
       await connection.execute('ALTER TABLE posts ADD COLUMN author VARCHAR(255) NULL');
