@@ -6,6 +6,8 @@ export interface Post {
   title: string;
   content: string;
   image_url?: string;
+  author?: string;
+  likes?: number;
   created_at: string;
   updated_at: string;
 }
@@ -95,6 +97,26 @@ class ApiClient {
   async deletePost(id: number): Promise<{ message: string }> {
     return this.request<{ message: string }>(`/posts/${id}`, {
       method: 'DELETE',
+    });
+  }
+
+  async likePost(id: number): Promise<{ likes: number }> {
+    return this.request<{ likes: number }>(`/posts/${id}/like`, { method: 'POST' });
+  }
+
+  async unlikePost(id: number): Promise<{ likes: number }> {
+    return this.request<{ likes: number }>(`/posts/${id}/unlike`, { method: 'POST' });
+  }
+
+  // Comments API
+  async getComments(postId: number): Promise<Array<{ id: number; post_id: number; author?: string; text: string; created_at: string }>> {
+    return this.request(`/posts/${postId}/comments`);
+  }
+
+  async addComment(postId: number, text: string, author?: string) {
+    return this.request(`/posts/${postId}/comments`, {
+      method: 'POST',
+      body: JSON.stringify({ text, author }),
     });
   }
 

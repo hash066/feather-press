@@ -42,6 +42,7 @@ export async function initializeDatabase() {
         content TEXT NOT NULL,
         author VARCHAR(255) NULL,
         image_url VARCHAR(500) NULL,
+        likes INT NOT NULL DEFAULT 0,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
       )
@@ -60,9 +61,27 @@ export async function initializeDatabase() {
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
       )
     `);
+    // Create comments table
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS comments (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        post_id INT NOT NULL,
+        author VARCHAR(255) NULL,
+        text TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_post_id (post_id),
+        FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE
+      )
+    `);
     // Try to add author column if table already existed without it
     try {
       await connection.execute('ALTER TABLE posts ADD COLUMN author VARCHAR(255) NULL');
+    } catch (e) {
+      // ignore if column exists
+    }
+    // Try to add likes column if table already existed without it
+    try {
+      await connection.execute('ALTER TABLE posts ADD COLUMN likes INT NOT NULL DEFAULT 0');
     } catch (e) {
       // ignore if column exists
     }

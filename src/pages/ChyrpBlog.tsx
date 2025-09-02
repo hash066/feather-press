@@ -64,6 +64,9 @@ const ChyrpBlog: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { elementRef, isVisible } = useScrollAnimation(0.1);
+  const [openCommentsPostId, setOpenCommentsPostId] = useState<number | null>(null);
+  const [comments, setComments] = useState<Record<number, Array<{ id: number; text: string; author?: string; created_at: string }>>>({});
+  const [newComment, setNewComment] = useState<Record<number, string>>({});
 
   // Fetch posts from database
   useEffect(() => {
@@ -109,16 +112,26 @@ const ChyrpBlog: React.FC = () => {
     }
   });
 
-  const handleLike = (postId: string) => {
-    setLikedPosts(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(postId)) {
-        newSet.delete(postId);
+  const handleLike = async (post: Post) => {
+    const idStr = post.id.toString();
+    const isLiked = likedPosts.has(idStr);
+    try {
+      if (isLiked) {
+        const { likes } = await apiClient.unlikePost(post.id);
+        setPosts(prev => prev.map(p => p.id === post.id ? { ...p, likes } : p));
+        setLikedPosts(prev => {
+          const s = new Set(prev);
+          s.delete(idStr);
+          return s;
+        });
       } else {
-        newSet.add(postId);
+        const { likes } = await apiClient.likePost(post.id);
+        setPosts(prev => prev.map(p => p.id === post.id ? { ...p, likes } : p));
+        setLikedPosts(prev => new Set(prev).add(idStr));
       }
-      return newSet;
-    });
+    } catch (e) {
+      console.error('Like toggle failed', e);
+    }
   };
 
   const handleBookmark = (postId: string) => {
@@ -143,6 +156,34 @@ const ChyrpBlog: React.FC = () => {
     } else {
       navigator.clipboard.writeText(`${window.location.origin}/post/${post.id}`);
       alert('Link copied to clipboard!');
+    }
+  };
+
+  const toggleComments = async (post: Post) => {
+    const isOpen = openCommentsPostId === post.id;
+    const next = isOpen ? null : post.id;
+    setOpenCommentsPostId(next);
+    if (!isOpen && !comments[post.id]) {
+      try {
+        const list = await apiClient.getComments(post.id);
+        setComments(prev => ({ ...prev, [post.id]: list }));
+      } catch (e) {
+        console.error('Load comments failed', e);
+      }
+    }
+  };
+
+  const submitComment = async (post: Post) => {
+    const text = (newComment[post.id] || '').trim();
+    if (!text) return;
+    try {
+      const currentUser = JSON.parse(localStorage.getItem('user') || 'null');
+      const author = currentUser?.username;
+      const list = await apiClient.addComment(post.id, text, author);
+      setComments(prev => ({ ...prev, [post.id]: list }));
+      setNewComment(prev => ({ ...prev, [post.id]: '' }));
+    } catch (e) {
+      console.error('Add comment failed', e);
     }
   };
 
@@ -356,19 +397,19 @@ const ChyrpBlog: React.FC = () => {
                     <div className="flex items-center space-x-4 text-sm text-content-secondary">
                       <div className="flex items-center space-x-1">
                         <Heart className="w-4 h-4" />
-                        <span>0</span>
+                        <span>{post.likes ?? 0}</span>
                       </div>
-                      <div className="flex items-center space-x-1">
+                      <button className="flex items-center space-x-1" onClick={() => toggleComments(post)}>
                         <MessageCircle className="w-4 h-4" />
-                        <span>0</span>
-                      </div>
+                        <span>{(comments[post.id]?.length ?? 0)}</span>
+                      </button>
                     </div>
                     
                     <div className="flex items-center space-x-2">
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => handleLike(post.id.toString())}
+                        onClick={() => handleLike(post)}
                         className={`h-8 w-8 p-0 ${likedPosts.has(post.id.toString()) ? 'text-brand-accent' : ''}`}
                       >
                         <Heart className="w-4 h-4" />
@@ -392,6 +433,29 @@ const ChyrpBlog: React.FC = () => {
                     </div>
                   </div>
                 </CardContent>
+                {openCommentsPostId === post.id && (
+                  <div className="px-6 pb-6 space-y-3">
+                    <div className="space-y-2">
+                      {(comments[post.id] || []).map(c => (
+                        <div key={c.id} className="text-sm text-content-secondary">
+                          <span className="font-medium text-content-primary">{c.author || 'Anon'}:</span> {c.text}
+                        </div>
+                      ))}
+                      {(!comments[post.id] || comments[post.id].length === 0) && (
+                        <div className="text-sm text-content-secondary">No comments yet.</div>
+                      )}
+                    </div>
+                    <div className="flex gap-2">
+                      <input
+                        className="flex-1 border border-border rounded px-3 py-2 text-sm bg-background"
+                        placeholder="Write a comment..."
+                        value={newComment[post.id] || ''}
+                        onChange={(e) => setNewComment(prev => ({ ...prev, [post.id]: e.target.value }))}
+                      />
+                      <Button size="sm" onClick={() => submitComment(post)}>Post</Button>
+                    </div>
+                  </div>
+                )}
               </Card>
             ))}
           </div>

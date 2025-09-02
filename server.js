@@ -40,6 +40,36 @@ app.get('/api/quotes', async (req, res) => {
   }
 });
 
+// Comments API
+// List comments for a post
+app.get('/api/posts/:id/comments', async (req, res) => {
+  try {
+    const { pool } = await import('./src/lib/mysqlClient.js');
+    const { id } = req.params;
+    const [rows] = await pool.execute('SELECT * FROM comments WHERE post_id = ? ORDER BY created_at ASC', [id]);
+    res.json(rows);
+  } catch (error) {
+    console.error('Error fetching comments:', error);
+    res.status(500).json({ error: 'Failed to fetch comments' });
+  }
+});
+
+// Create a comment
+app.post('/api/posts/:id/comments', async (req, res) => {
+  try {
+    const { pool } = await import('./src/lib/mysqlClient.js');
+    const { id } = req.params;
+    const { text, author } = req.body;
+    if (!text) return res.status(400).json({ error: 'Comment text is required' });
+    await pool.execute('INSERT INTO comments (post_id, author, text) VALUES (?, ?, ?)', [id, author || null, text]);
+    const [rows] = await pool.execute('SELECT * FROM comments WHERE post_id = ? ORDER BY created_at ASC', [id]);
+    res.status(201).json(rows);
+  } catch (error) {
+    console.error('Error creating comment:', error);
+    res.status(500).json({ error: 'Failed to create comment' });
+  }
+});
+
 // Create quote
 app.post('/api/quotes', async (req, res) => {
   try {
@@ -165,6 +195,36 @@ app.delete('/api/posts/:id', async (req, res) => {
   } catch (error) {
     console.error('Error deleting post:', error);
     res.status(500).json({ error: 'Failed to delete post' });
+  }
+});
+
+// Like a post
+app.post('/api/posts/:id/like', async (req, res) => {
+  try {
+    const { pool } = await import('./src/lib/mysqlClient.js');
+    const { id } = req.params;
+    await pool.execute('UPDATE posts SET likes = likes + 1 WHERE id = ?', [id]);
+    const [rows] = await pool.execute('SELECT likes FROM posts WHERE id = ?', [id]);
+    if (!rows.length) return res.status(404).json({ error: 'Post not found' });
+    res.json({ likes: rows[0].likes });
+  } catch (error) {
+    console.error('Error liking post:', error);
+    res.status(500).json({ error: 'Failed to like post' });
+  }
+});
+
+// Unlike a post
+app.post('/api/posts/:id/unlike', async (req, res) => {
+  try {
+    const { pool } = await import('./src/lib/mysqlClient.js');
+    const { id } = req.params;
+    await pool.execute('UPDATE posts SET likes = GREATEST(likes - 1, 0) WHERE id = ?', [id]);
+    const [rows] = await pool.execute('SELECT likes FROM posts WHERE id = ?', [id]);
+    if (!rows.length) return res.status(404).json({ error: 'Post not found' });
+    res.json({ likes: rows[0].likes });
+  } catch (error) {
+    console.error('Error unliking post:', error);
+    res.status(500).json({ error: 'Failed to unlike post' });
   }
 });
 
