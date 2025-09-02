@@ -10,6 +10,17 @@ export interface Post {
   updated_at: string;
 }
 
+export interface QuoteItem {
+  id: number;
+  text: string;
+  author?: string;
+  created_by?: string;
+  category?: string;
+  tags?: string;
+  created_at: string;
+  updated_at: string;
+}
+
 class ApiClient {
   private baseUrl: string;
 
@@ -24,10 +35,12 @@ class ApiClient {
         'Content-Type': 'application/json',
         ...options.headers,
       },
+      cache: 'no-store',
       ...options,
     };
 
     try {
+      console.debug('[apiClient] request', url, config.method || 'GET');
       const response = await fetch(url, config);
       
       if (!response.ok) {
@@ -43,18 +56,32 @@ class ApiClient {
   }
 
   // Posts API
-  async getPosts(): Promise<Post[]> {
-    return this.request<Post[]>('/posts');
+  async getPosts(author?: string): Promise<Post[]> {
+    const query = author ? `?author=${encodeURIComponent(author)}` : '';
+    return this.request<Post[]>(`/posts${query}`);
+  }
+
+  // Quotes API
+  async getQuotes(createdBy?: string): Promise<QuoteItem[]> {
+    const query = createdBy ? `?created_by=${encodeURIComponent(createdBy)}` : '';
+    return this.request<QuoteItem[]>(`/quotes${query}`);
+  }
+
+  async createQuote(text: string, author?: string, createdBy?: string, category?: string, tags?: string): Promise<QuoteItem> {
+    return this.request<QuoteItem>('/quotes', {
+      method: 'POST',
+      body: JSON.stringify({ text, author, created_by: createdBy, category, tags }),
+    });
   }
 
   async getPost(id: number): Promise<Post> {
     return this.request<Post>(`/posts/${id}`);
   }
 
-  async createPost(title: string, content: string, image_url?: string): Promise<Post> {
+  async createPost(title: string, content: string, image_url?: string, author?: string): Promise<Post> {
     return this.request<Post>('/posts', {
       method: 'POST',
-      body: JSON.stringify({ title, content, image_url }),
+      body: JSON.stringify({ title, content, image_url, author }),
     });
   }
 
