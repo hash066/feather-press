@@ -1,5 +1,6 @@
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { SettingsProvider } from '@/components/SettingsContext'
 import './index.css'
 
 import Index from '@/pages/Index'
@@ -17,8 +18,9 @@ import About from '@/pages/About'
 import Contact from '@/pages/Contact'
 
 createRoot(document.getElementById("root")!).render(
-  <BrowserRouter>
-    <Routes>
+  <SettingsProvider>
+    <BrowserRouter>
+      <Routes>
       <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
       <Route path="/blog" element={<ProtectedRoute><ChyrpBlog /></ProtectedRoute>} />
       <Route path="/quotes" element={<ProtectedRoute><Quotes /></ProtectedRoute>} />
@@ -31,7 +33,8 @@ createRoot(document.getElementById("root")!).render(
       <Route path="/gallery" element={<ProtectedRoute><PhotoGallery /></ProtectedRoute>} />
       <Route path="/about" element={<ProtectedRoute><About /></ProtectedRoute>} />
       <Route path="/contact" element={<ProtectedRoute><Contact /></ProtectedRoute>} />
-      <Route path="*" element={<Index />} />
-    </Routes>
-  </BrowserRouter>
+        <Route path="*" element={<Index />} />
+      </Routes>
+    </BrowserRouter>
+  </SettingsProvider>
 );
