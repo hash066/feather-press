@@ -4,17 +4,12 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { PenTool, Menu, X, Settings, User, LogOut, ChevronDown } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useSettings } from "@/components/SettingsContext";
-import SettingsDrawer from "@/components/SettingsDrawer";
-import SocialLinks from "@/components/SocialLinks";
 
 export const Navigation = () => {
   const navigate = useNavigate();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [user, setUser] = useState<any>(null);
-  const { settings } = useSettings();
-  const [settingsOpen, setSettingsOpen] = useState(false);
 
   useEffect(() => {
     const userData = localStorage.getItem('user');
@@ -80,6 +75,7 @@ export const Navigation = () => {
               { name: 'Blog', href: '/blog' },
               { name: 'Quotes', href: '/quotes' },
               { name: 'Gallery', href: '/gallery' },
+              { name: 'Videos', href: '/videos' },
               { name: 'About', href: '/about' },
               { name: 'Contact', href: '/contact' }
             ].map((item, index) => (
@@ -97,10 +93,7 @@ export const Navigation = () => {
 
           {/* Right Actions */}
           <div className="flex items-center space-x-3 lg:space-x-4">
-            {/* Social Links */}
-            <div className="hidden lg:block">
-              <SocialLinks size="sm" />
-            </div>
+
             
             {/* Settings Button */}
             <Button 
@@ -194,6 +187,7 @@ export const Navigation = () => {
               { name: 'Blog', href: '/blog' },
               { name: 'Quotes', href: '/quotes' },
               { name: 'Gallery', href: '/gallery' },
+              { name: 'Videos', href: '/videos' },
               { name: 'About', href: '/about' },
               { name: 'Contact', href: '/contact' }
             ].map((item, index) => (
@@ -211,6 +205,9 @@ export const Navigation = () => {
         </div>
       </div>
       <div className="absolute inset-0 bg-white/80 backdrop-blur-md -z-10"></div>
+
+      {/* Global Search Dialog */}
+      <GlobalSearch open={isSearchOpen} onOpenChange={setIsSearchOpen} />
     </nav>
     <SettingsDrawer open={settingsOpen} onOpenChange={setSettingsOpen} onSignOut={handleLogout} />
     </>
