@@ -44,6 +44,22 @@ export interface AudioItem {
   updated_at: string;
 }
 
+export interface PhotoItem {
+  id: number;
+  title: string;
+  url: string;
+  description?: string;
+  photographer?: string; // display name
+  created_by?: string;   // username
+  category?: string;
+  tags?: string;
+  likes?: number;
+  views?: number;
+  downloads?: number;
+  created_at: string;
+  updated_at: string;
+}
+
 class ApiClient {
   private baseUrl: string;
 

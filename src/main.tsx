@@ -36,6 +36,9 @@ createRoot(document.getElementById("root")!).render(
       <Route path="/posts/:id" element={<ProtectedRoute><ChyrpPostDetail /></ProtectedRoute>} />
       { /* audio routes removed */ }
       <Route path="/create-quote" element={<ProtectedRoute><CreateQuote /></ProtectedRoute>} />
+      <Route path="/gallery" element={<ProtectedRoute><PhotoGallery /></ProtectedRoute>} />
+      <Route path="/about" element={<ProtectedRoute><About /></ProtectedRoute>} />
+      <Route path="/contact" element={<ProtectedRoute><Contact /></ProtectedRoute>} />
       <Route path="*" element={<Index />} />
     </Routes>
   </BrowserRouter>

@@ -13,7 +13,29 @@ const PORT = process.env.PORT || 3001;
 
 // Middleware
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
+// Serve uploaded images
+app.use('/uploads', express.static(path.join(process.cwd(), 'public', 'uploads')));
+
+// Helpers
+async function getUserRole(pool, userId, username) {
+  if (!userId && !username) return null;
+  try {
+    if (userId) {
+      const [rows] = await pool.execute('SELECT role FROM users WHERE id = ?', [userId]);
+      if (rows.length) return rows[0].role;
+    }
+    if (username) {
+      const [rows] = await pool.execute('SELECT role FROM users WHERE username = ?', [username]);
+      if (rows.length) return rows[0].role;
+    }
+    if (!rows.length) return null;
+    return null;
+  } catch {
+    return null;
+  }
+}
 
 // Static uploads directory
 const uploadsDir = path.resolve('public', 'uploads');
@@ -286,13 +308,26 @@ app.delete('/api/posts/:id', async (req, res) => {
   try {
     const { pool } = await import('./src/lib/mysqlClient.js');
     const { id } = req.params;
+    const { userId, username } = req.query; // username of requester (for ownership)
     
-    const [result] = await pool.execute('DELETE FROM posts WHERE id = ?', [id]);
-    
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ error: 'Post not found' });
+    // If admin, allow delete of any post
+    const role = await getUserRole(pool, userId, username);
+    if (role === 'admin') {
+      const [result] = await pool.execute('DELETE FROM posts WHERE id = ?', [id]);
+      if (result.affectedRows === 0) return res.status(404).json({ error: 'Post not found' });
+      return res.json({ message: 'Post deleted successfully' });
     }
     
+    // Non-admin: only delete own post (match by author username)
+    if (!username) return res.status(400).json({ error: 'username is required' });
+    const [rows] = await pool.execute('SELECT author FROM posts WHERE id = ?', [id]);
+    if (!rows.length) return res.status(404).json({ error: 'Post not found' });
+    if ((rows[0].author || '') !== String(username)) {
+      return res.status(403).json({ error: 'Not allowed to delete this post' });
+    }
+    
+    const [result] = await pool.execute('DELETE FROM posts WHERE id = ? AND author = ?', [id, username]);
+    if (result.affectedRows === 0) return res.status(404).json({ error: 'Post not found' });
     res.json({ message: 'Post deleted successfully' });
   } catch (error) {
     console.error('Error deleting post:', error);
@@ -327,6 +362,107 @@ app.post('/api/posts/:id/unlike', async (req, res) => {
   } catch (error) {
     console.error('Error unliking post:', error);
     res.status(500).json({ error: 'Failed to unlike post' });
+  }
+});
+
+// Admin-only delete endpoints
+app.delete('/api/admin/posts/:id', async (req, res) => {
+  try {
+    const { pool } = await import('./src/lib/mysqlClient.js');
+    const { id } = req.params;
+    const { userId, username } = req.query;
+    const role = await getUserRole(pool, userId, username);
+    if (role !== 'admin' && String(username).toLowerCase() !== 'admin') return res.status(403).json({ error: 'Admin access required' });
+    const [result] = await pool.execute('DELETE FROM posts WHERE id = ?', [id]);
+    if (result.affectedRows === 0) return res.status(404).json({ error: 'Post not found' });
+    res.json({ message: 'Post deleted' });
+  } catch (e) {
+    console.error('Admin delete post failed', e);
+    res.status(500).json({ error: 'Failed to delete post' });
+  }
+});
+
+// Quotes delete (owner or admin)
+app.delete('/api/quotes/:id', async (req, res) => {
+  try {
+    const { pool } = await import('./src/lib/mysqlClient.js');
+    const { id } = req.params;
+    const { userId, username } = req.query;
+    const role = await getUserRole(pool, userId);
+    if (role === 'admin') {
+      const [result] = await pool.execute('DELETE FROM quotes WHERE id = ?', [id]);
+      if (result.affectedRows === 0) return res.status(404).json({ error: 'Quote not found' });
+      return res.json({ message: 'Quote deleted' });
+    }
+    if (!username) return res.status(400).json({ error: 'username is required' });
+    const [rows] = await pool.execute('SELECT created_by FROM quotes WHERE id = ?', [id]);
+    if (!rows.length) return res.status(404).json({ error: 'Quote not found' });
+    if ((rows[0].created_by || '') !== String(username)) return res.status(403).json({ error: 'Not allowed' });
+    const [result] = await pool.execute('DELETE FROM quotes WHERE id = ? AND created_by = ?', [id, username]);
+    if (result.affectedRows === 0) return res.status(404).json({ error: 'Quote not found' });
+    res.json({ message: 'Quote deleted' });
+  } catch (e) {
+    console.error('Delete quote failed', e);
+    res.status(500).json({ error: 'Failed to delete quote' });
+  }
+});
+
+// Admin-only delete quote
+app.delete('/api/admin/quotes/:id', async (req, res) => {
+  try {
+    const { pool } = await import('./src/lib/mysqlClient.js');
+    const { id } = req.params;
+    const { userId } = req.query;
+    const role = await getUserRole(pool, userId);
+    if (role !== 'admin') return res.status(403).json({ error: 'Admin access required' });
+    const [result] = await pool.execute('DELETE FROM quotes WHERE id = ?', [id]);
+    if (result.affectedRows === 0) return res.status(404).json({ error: 'Quote not found' });
+    res.json({ message: 'Quote deleted' });
+  } catch (e) {
+    console.error('Admin delete quote failed', e);
+    res.status(500).json({ error: 'Failed to delete quote' });
+  }
+});
+
+// Delete comment (owner or admin)
+app.delete('/api/comments/:id', async (req, res) => {
+  try {
+    const { pool } = await import('./src/lib/mysqlClient.js');
+    const { id } = req.params;
+    const { userId, username } = req.query;
+    const role = await getUserRole(pool, userId);
+    if (role === 'admin') {
+      const [result] = await pool.execute('DELETE FROM comments WHERE id = ?', [id]);
+      if (result.affectedRows === 0) return res.status(404).json({ error: 'Comment not found' });
+      return res.json({ message: 'Comment deleted' });
+    }
+    if (!username) return res.status(400).json({ error: 'username is required' });
+    const [rows] = await pool.execute('SELECT author FROM comments WHERE id = ?', [id]);
+    if (!rows.length) return res.status(404).json({ error: 'Comment not found' });
+    if ((rows[0].author || '') !== String(username)) return res.status(403).json({ error: 'Not allowed' });
+    const [result] = await pool.execute('DELETE FROM comments WHERE id = ? AND author = ?', [id, username]);
+    if (result.affectedRows === 0) return res.status(404).json({ error: 'Comment not found' });
+    res.json({ message: 'Comment deleted' });
+  } catch (e) {
+    console.error('Delete comment failed', e);
+    res.status(500).json({ error: 'Failed to delete comment' });
+  }
+});
+
+// Admin-only delete comment
+app.delete('/api/admin/comments/:id', async (req, res) => {
+  try {
+    const { pool } = await import('./src/lib/mysqlClient.js');
+    const { id } = req.params;
+    const { userId } = req.query;
+    const role = await getUserRole(pool, userId);
+    if (role !== 'admin') return res.status(403).json({ error: 'Admin access required' });
+    const [result] = await pool.execute('DELETE FROM comments WHERE id = ?', [id]);
+    if (result.affectedRows === 0) return res.status(404).json({ error: 'Comment not found' });
+    res.json({ message: 'Comment deleted' });
+  } catch (e) {
+    console.error('Admin delete comment failed', e);
+    res.status(500).json({ error: 'Failed to delete comment' });
   }
 });
 

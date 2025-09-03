@@ -19,7 +19,7 @@ export const ChyrpTheme: React.FC<ChyrpThemeProps> = ({
   children,
   siteTitle = "Chyrp Lite",
   siteDescription = "A modern blog platform",
-  author = "Admin",
+  author = "Anonymous",
   posts = [],
   categories = [],
   tags = []

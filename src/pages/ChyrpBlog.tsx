@@ -21,6 +21,7 @@ import {
   User,
   Tag,
   FileText,
+  Trash2,
   Loader2
 } from 'lucide-react';
 import { Navigation } from '@/components/Navigation';
@@ -67,6 +68,8 @@ const ChyrpBlog: React.FC = () => {
   const [openCommentsPostId, setOpenCommentsPostId] = useState<number | null>(null);
   const [comments, setComments] = useState<Record<number, Array<{ id: number; text: string; author?: string; created_at: string }>>>({});
   const [newComment, setNewComment] = useState<Record<number, string>>({});
+  const currentUser = JSON.parse(localStorage.getItem('user') || 'null');
+  const isAdmin = !!currentUser && currentUser.role === 'admin';
 
   // Fetch posts from database
   useEffect(() => {
@@ -165,6 +168,32 @@ const ChyrpBlog: React.FC = () => {
     } else {
       navigator.clipboard.writeText(`${window.location.origin}/post/${post.id}`);
       alert('Link copied to clipboard!');
+    }
+  };
+
+  const handleDelete = async (post: Post) => {
+    if (!currentUser) return alert('Please log in');
+    if (!confirm('Delete this post?')) return;
+    try {
+      const base = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
+      const adminUrl = `${base}/admin/posts/${post.id}?userId=${currentUser.id}&username=${encodeURIComponent(currentUser.username)}`;
+      const ownerUrl = `${base}/posts/${post.id}?userId=${currentUser.id}&username=${encodeURIComponent(currentUser.username)}`;
+      const tryUrl = isAdmin ? adminUrl : ownerUrl;
+      let res = await fetch(tryUrl, { method: 'DELETE' });
+      if (!res.ok && isAdmin) {
+        // Fallback: try owner path in case admin role wasn’t detected
+        res = await fetch(ownerUrl, { method: 'DELETE' });
+      }
+      if (!res.ok) {
+        const errText = await res.text();
+        let errMsg = 'Delete failed';
+        try { errMsg = (JSON.parse(errText).error) || errMsg; } catch {}
+        throw new Error(errMsg);
+      }
+      setPosts(prev => prev.filter(p => p.id !== post.id));
+    } catch (e) {
+      console.error('Delete failed', e);
+      alert((e as Error).message || 'Failed to delete post');
     }
   };
 
@@ -397,7 +426,7 @@ const ChyrpBlog: React.FC = () => {
                   
                   <div className="flex items-center space-x-2 mb-4">
                     <User className="w-4 h-4 text-content-secondary" />
-                    <span className="text-sm text-content-secondary">Admin</span>
+                    <span className="text-sm text-content-secondary">{post.author || 'Admin'}</span>
                     <Calendar className="w-4 h-4 text-content-secondary ml-2" />
                     <span className="text-sm text-content-secondary">{formatDate(post.created_at)}</span>
                   </div>
@@ -415,6 +444,17 @@ const ChyrpBlog: React.FC = () => {
                     </div>
                     
                     <div className="flex items-center space-x-2">
+                      {(isAdmin || (currentUser && currentUser.username === post.author)) && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDelete(post)}
+                          className="h-8 w-8 p-0 text-red-600"
+                          title="Delete post"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      )}
                       <Button
                         variant="ghost"
                         size="sm"
