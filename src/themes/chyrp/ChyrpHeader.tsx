@@ -17,6 +17,7 @@ import {
   Sparkles,
   Zap
 } from 'lucide-react';
+import SettingsDrawer from '@/components/SettingsDrawer';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -51,6 +52,7 @@ export const ChyrpHeader: React.FC<ChyrpHeaderProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const location = useLocation();
 
   useEffect(() => {
@@ -87,8 +89,17 @@ export const ChyrpHeader: React.FC<ChyrpHeaderProps> = ({
     >
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
-          {/* Logo and Brand */}
-          <div className="flex items-center space-x-4">
+          {/* Top-left: Settings + Logo and Brand */}
+          <div className="flex items-center space-x-2 sm:space-x-4">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="hover:bg-muted"
+              onClick={() => setSettingsOpen(true)}
+              title="Open settings"
+            >
+              <Menu className="w-5 h-5 text-black" />
+            </Button>
             <Link 
               to="/" 
               className="flex items-center space-x-2 group"
@@ -307,6 +318,11 @@ export const ChyrpHeader: React.FC<ChyrpHeaderProps> = ({
         </div>
       </div>
     </header>
+    <SettingsDrawer 
+      open={settingsOpen} 
+      onOpenChange={setSettingsOpen} 
+      onSignOut={() => { localStorage.removeItem('user'); localStorage.removeItem('token'); window.location.href = '/login'; }}
+    />
   );
 };
 

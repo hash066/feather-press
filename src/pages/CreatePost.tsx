@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, Eye, FileText, Plus, Search, Feather } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { apiClient } from "@/lib/apiClient";
+import AITitleSuggestions from "@/components/AITitleSuggestions";
 
 const CreatePost = () => {
   const navigate = useNavigate();
@@ -168,16 +169,25 @@ const CreatePost = () => {
             )}
 
             {/* Title Field */}
-            <div className="space-y-2">
-              <label htmlFor="title" className="text-sm font-medium text-content-primary">
-                Title
-              </label>
-              <Input
-                id="title"
-                placeholder="Enter your post title..."
-                value={formData.title}
-                onChange={(e) => handleInputChange("title", e.target.value)}
-                className="w-full"
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label htmlFor="title" className="text-sm font-medium text-content-primary">
+                  Title
+                </label>
+                <Input
+                  id="title"
+                  placeholder="Enter your post title..."
+                  value={formData.title}
+                  onChange={(e) => handleInputChange("title", e.target.value)}
+                  className="w-full"
+                />
+              </div>
+              
+              {/* AI Title Suggestions */}
+              <AITitleSuggestions
+                content={formData.content}
+                onSelectTitle={(title) => handleInputChange("title", title)}
+                className="mt-4"
               />
             </div>
             {/* Author Field */}
