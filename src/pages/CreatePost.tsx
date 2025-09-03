@@ -12,7 +12,8 @@ const CreatePost = () => {
   const [formData, setFormData] = useState({
     title: "",
     content: "",
-    author: ""
+    author: "",
+    tags: ""
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState("");
@@ -37,7 +38,7 @@ const CreatePost = () => {
       const currentUser = JSON.parse(localStorage.getItem('user') || 'null');
       const fallbackAuthor = currentUser?.username;
       const author = formData.author?.trim() || fallbackAuthor;
-      await apiClient.createPost(formData.title, formData.content, undefined, author);
+      await apiClient.createPost(formData.title, formData.content, undefined, author, formData.tags);
       setMessage("Post created successfully!");
       setFormData({ title: "", content: "", author: "" });
       // Navigate to home page after successful creation
@@ -204,6 +205,20 @@ const CreatePost = () => {
                 value={formData.content}
                 onChange={(e) => handleInputChange("content", e.target.value)}
                 className="w-full min-h-[400px] resize-y"
+              />
+            </div>
+
+            {/* Tags Field */}
+            <div className="space-y-2">
+              <label htmlFor="tags" className="text-sm font-medium text-content-primary">
+                Tags (comma separated)
+              </label>
+              <Input
+                id="tags"
+                placeholder="e.g. nature, travel"
+                value={formData.tags}
+                onChange={(e) => handleInputChange("tags", e.target.value)}
+                className="w-full"
               />
             </div>
           </CardContent>

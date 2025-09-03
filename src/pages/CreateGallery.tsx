@@ -13,6 +13,7 @@ const CreateGallery = () => {
   const navigate = useNavigate();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [tags, setTags] = useState('');
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -68,7 +69,8 @@ const CreateGallery = () => {
         title,
         description,
         created_by,
-        images: files.map((f) => ({ url: f.url }))
+        images: files.map((f) => ({ url: f.url })),
+        tags
       });
       setMessage(`Gallery created with ${files.length} image(s).`);
     } catch (err: any) {
@@ -124,6 +126,11 @@ const CreateGallery = () => {
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="tags">Tags (comma separated)</Label>
+              <Input id="tags" placeholder="e.g. nature, travel" className="w-full" value={tags} onChange={(e) => setTags(e.target.value)} />
             </div>
 
             <div className="space-y-2">

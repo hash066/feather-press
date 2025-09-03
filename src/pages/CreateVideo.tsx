@@ -13,6 +13,7 @@ const CreateVideo = () => {
   const navigate = useNavigate();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [tags, setTags] = useState('');
   const [videoUrl, setVideoUrl] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [message, setMessage] = useState('');
@@ -44,7 +45,7 @@ const CreateVideo = () => {
       }
       const currentUser = JSON.parse(localStorage.getItem('user') || 'null');
       const created_by = currentUser?.username;
-      await apiClient.createVideo({ title, description, created_by, source, url: finalUrl });
+      await apiClient.createVideo({ title, description, created_by, source, url: finalUrl, tags });
       setMessage('Video created!');
       setTitle(''); setDescription(''); setVideoUrl(''); setFile(null);
     } catch (e: any) {
@@ -87,6 +88,11 @@ const CreateVideo = () => {
             <div className="space-y-2">
               <Label htmlFor="description">Description</Label>
               <Textarea id="description" placeholder="Describe your video content" rows={3} className="w-full" value={description} onChange={(e) => setDescription(e.target.value)} />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="tags">Tags (comma separated)</Label>
+              <Input id="tags" placeholder="e.g. nature, travel" className="w-full" value={tags} onChange={(e) => setTags(e.target.value)} />
             </div>
 
             <div className="space-y-2">

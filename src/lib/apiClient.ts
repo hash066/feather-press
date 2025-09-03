@@ -16,6 +16,7 @@ export interface Post {
   image_url?: string;
   author?: string;
   likes?: number;
+  tags?: string;
   created_at: string;
   updated_at: string;
 }
@@ -27,6 +28,18 @@ export interface QuoteItem {
   created_by?: string;
   category?: string;
   tags?: string;
+  likes?: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AudioItem {
+  id: number;
+  title: string;
+  description?: string;
+  created_by?: string;
+  source: string;
+  url: string;
   created_at: string;
   updated_at: string;
 }
@@ -84,14 +97,23 @@ class ApiClient {
     });
   }
 
+  // Quote likes
+  async likeQuote(id: number): Promise<{ likes: number }> {
+    return this.request<{ likes: number }>(`/quotes/${id}/like`, { method: 'POST' });
+  }
+
+  async unlikeQuote(id: number): Promise<{ likes: number }> {
+    return this.request<{ likes: number }>(`/quotes/${id}/unlike`, { method: 'POST' });
+  }
+
   async getPost(id: number): Promise<Post> {
     return this.request<Post>(`/posts/${id}`);
   }
 
-  async createPost(title: string, content: string, image_url?: string, author?: string): Promise<Post> {
+  async createPost(title: string, content: string, image_url?: string, author?: string, tags?: string): Promise<Post> {
     return this.request<Post>('/posts', {
       method: 'POST',
-      body: JSON.stringify({ title, content, image_url, author }),
+      body: JSON.stringify({ title, content, image_url, author, tags }),
     });
   }
 
@@ -116,16 +138,25 @@ class ApiClient {
     return this.request<{ likes: number }>(`/posts/${id}/unlike`, { method: 'POST' });
   }
 
-  // Comments API
-  async getComments(postId: number): Promise<Array<{ id: number; post_id: number; author?: string; text: string; created_at: string }>> {
-    return this.request(`/posts/${postId}/comments`);
+  // Generic Comments API - works with any content type
+  async getComments(contentType: 'posts' | 'quotes' | 'videos' | 'galleries', contentId: number): Promise<Array<{ id: number; content_type: string; content_id: number; author?: string; text: string; created_at: string }>> {
+    return this.request(`/${contentType}/${contentId}/comments`);
   }
 
-  async addComment(postId: number, text: string, author?: string) {
-    return this.request(`/posts/${postId}/comments`, {
+  async addComment(contentType: 'posts' | 'quotes' | 'videos' | 'galleries', contentId: number, text: string, author?: string) {
+    return this.request(`/${contentType}/${contentId}/comments`, {
       method: 'POST',
       body: JSON.stringify({ text, author }),
     });
+  }
+
+  // Legacy method for backward compatibility
+  async getPostComments(postId: number): Promise<Array<{ id: number; post_id: number; author?: string; text: string; created_at: string }>> {
+    return this.getComments('posts', postId);
+  }
+
+  async addPostComment(postId: number, text: string, author?: string) {
+    return this.addComment('posts', postId, text, author);
   }
 
   // Uploads API
@@ -144,16 +175,25 @@ class ApiClient {
   }
 
   // Galleries API
-  async getGalleries(createdBy?: string): Promise<Array<{ id: number; title: string; description?: string; created_by?: string; images: string; created_at: string }>> {
+  async getGalleries(createdBy?: string): Promise<Array<{ id: number; title: string; description?: string; created_by?: string; images: string; tags?: string; created_at: string }>> {
     const query = createdBy ? `?created_by=${encodeURIComponent(createdBy)}` : '';
     return this.request(`/galleries${query}`);
   }
 
-  async createGallery(params: { title: string; description?: string; created_by?: string; images: Array<{ url: string }> }): Promise<{ id: number } & Record<string, any>> {
+  async createGallery(params: { title: string; description?: string; created_by?: string; images: Array<{ url: string }>; tags?: string }): Promise<{ id: number } & Record<string, any>> {
     return this.request('/galleries', {
       method: 'POST',
       body: JSON.stringify(params),
     });
+  }
+
+  // Gallery likes
+  async likeGallery(id: number): Promise<{ likes: number }> {
+    return this.request<{ likes: number }>(`/galleries/${id}/like`, { method: 'POST' });
+  }
+
+  async unlikeGallery(id: number): Promise<{ likes: number }> {
+    return this.request<{ likes: number }>(`/galleries/${id}/unlike`, { method: 'POST' });
   }
 
   async listUploads(): Promise<{ files: Array<{ name: string; url: string; size: number; mtime: number }> }> {
@@ -161,29 +201,32 @@ class ApiClient {
   }
 
   // Videos API
-  async getVideos(createdBy?: string): Promise<Array<{ id: number; title: string; description?: string; created_by?: string; source: string; url: string; created_at: string }>> {
+  async getVideos(createdBy?: string): Promise<Array<{ id: number; title: string; description?: string; created_by?: string; source: string; url: string; tags?: string; created_at: string }>> {
     const query = createdBy ? `?created_by=${encodeURIComponent(createdBy)}` : '';
     return this.request(`/videos${query}`);
   }
 
-  async createVideo(params: { title: string; description?: string; created_by?: string; source: 'upload' | 'url'; url: string }) {
+  async createVideo(params: { title: string; description?: string; created_by?: string; source: 'upload' | 'url'; url: string; tags?: string }) {
     return this.request('/videos', {
       method: 'POST',
       body: JSON.stringify(params),
     });
   }
 
-  // Audios API
-  async getAudios(createdBy?: string): Promise<Array<{ id: number; title: string; description?: string; created_by?: string; source: string; url: string; created_at: string }>> {
-    const query = createdBy ? `?created_by=${encodeURIComponent(createdBy)}` : '';
-    return this.request(`/audios${query}`);
+  // Video likes
+  async likeVideo(id: number): Promise<{ likes: number }> {
+    return this.request<{ likes: number }>(`/videos/${id}/like`, { method: 'POST' });
   }
 
-  async createAudio(params: { title: string; description?: string; created_by?: string; source: 'upload' | 'url'; url: string }) {
-    return this.request('/audios', {
-      method: 'POST',
-      body: JSON.stringify(params),
-    });
+  async unlikeVideo(id: number): Promise<{ likes: number }> {
+    return this.request<{ likes: number }>(`/videos/${id}/unlike`, { method: 'POST' });
+  }
+
+  // Audios API removed
+  // Audios API
+  async getAudios(createdBy?: string): Promise<AudioItem[]> {
+    const query = createdBy ? `?created_by=${encodeURIComponent(createdBy)}` : '';
+    return this.request<AudioItem[]>(`/audios${query}`);
   }
 
   // Health check

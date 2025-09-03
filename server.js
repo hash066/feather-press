@@ -70,13 +70,31 @@ app.get('/api/quotes', async (req, res) => {
   }
 });
 
-// Comments API
-// List comments for a post
-app.get('/api/posts/:id/comments', async (req, res) => {
+// Generic Comments API - works with any content type
+// List comments for any content type
+app.get('/api/:contentType/:id/comments', async (req, res) => {
   try {
     const { pool } = await import('./src/lib/mysqlClient.js');
-    const { id } = req.params;
-    const [rows] = await pool.execute('SELECT * FROM comments WHERE post_id = ? ORDER BY created_at ASC', [id]);
+    const { contentType, id } = req.params;
+    
+    // Validate content type
+    if (!['posts', 'quotes', 'videos', 'galleries'].includes(contentType)) {
+      return res.status(400).json({ error: 'Invalid content type' });
+    }
+    
+    // Map plural to singular for database
+    const contentTypeMap = {
+      'posts': 'post',
+      'quotes': 'quote', 
+      'videos': 'video',
+      'galleries': 'gallery'
+    };
+    
+    const dbContentType = contentTypeMap[contentType];
+    const [rows] = await pool.execute(
+      'SELECT * FROM comments WHERE content_type = ? AND content_id = ? ORDER BY created_at ASC', 
+      [dbContentType, id]
+    );
     res.json(rows);
   } catch (error) {
     console.error('Error fetching comments:', error);
@@ -84,15 +102,39 @@ app.get('/api/posts/:id/comments', async (req, res) => {
   }
 });
 
-// Create a comment
-app.post('/api/posts/:id/comments', async (req, res) => {
+// Create a comment for any content type
+app.post('/api/:contentType/:id/comments', async (req, res) => {
   try {
     const { pool } = await import('./src/lib/mysqlClient.js');
-    const { id } = req.params;
+    const { contentType, id } = req.params;
     const { text, author } = req.body;
+    
     if (!text) return res.status(400).json({ error: 'Comment text is required' });
-    await pool.execute('INSERT INTO comments (post_id, author, text) VALUES (?, ?, ?)', [id, author || null, text]);
-    const [rows] = await pool.execute('SELECT * FROM comments WHERE post_id = ? ORDER BY created_at ASC', [id]);
+    
+    // Validate content type
+    if (!['posts', 'quotes', 'videos', 'galleries'].includes(contentType)) {
+      return res.status(400).json({ error: 'Invalid content type' });
+    }
+    
+    // Map plural to singular for database
+    const contentTypeMap = {
+      'posts': 'post',
+      'quotes': 'quote', 
+      'videos': 'video',
+      'galleries': 'gallery'
+    };
+    
+    const dbContentType = contentTypeMap[contentType];
+    
+    await pool.execute(
+      'INSERT INTO comments (content_type, content_id, author, text) VALUES (?, ?, ?, ?)', 
+      [dbContentType, id, author || null, text]
+    );
+    
+    const [rows] = await pool.execute(
+      'SELECT * FROM comments WHERE content_type = ? AND content_id = ? ORDER BY created_at ASC', 
+      [dbContentType, id]
+    );
     res.status(201).json(rows);
   } catch (error) {
     console.error('Error creating comment:', error);
@@ -117,6 +159,36 @@ app.post('/api/quotes', async (req, res) => {
   } catch (error) {
     console.error('Error creating quote:', error);
     res.status(500).json({ error: 'Failed to create quote' });
+  }
+});
+
+// Like a quote
+app.post('/api/quotes/:id/like', async (req, res) => {
+  try {
+    const { pool } = await import('./src/lib/mysqlClient.js');
+    const { id } = req.params;
+    await pool.execute('UPDATE quotes SET likes = likes + 1 WHERE id = ?', [id]);
+    const [rows] = await pool.execute('SELECT likes FROM quotes WHERE id = ?', [id]);
+    if (!rows.length) return res.status(404).json({ error: 'Quote not found' });
+    res.json({ likes: rows[0].likes });
+  } catch (error) {
+    console.error('Error liking quote:', error);
+    res.status(500).json({ error: 'Failed to like quote' });
+  }
+});
+
+// Unlike a quote
+app.post('/api/quotes/:id/unlike', async (req, res) => {
+  try {
+    const { pool } = await import('./src/lib/mysqlClient.js');
+    const { id } = req.params;
+    await pool.execute('UPDATE quotes SET likes = GREATEST(likes - 1, 0) WHERE id = ?', [id]);
+    const [rows] = await pool.execute('SELECT likes FROM quotes WHERE id = ?', [id]);
+    if (!rows.length) return res.status(404).json({ error: 'Quote not found' });
+    res.json({ likes: rows[0].likes });
+  } catch (error) {
+    console.error('Error unliking quote:', error);
+    res.status(500).json({ error: 'Failed to unlike quote' });
   }
 });
 
@@ -162,15 +234,15 @@ app.get('/api/posts/:id', async (req, res) => {
 app.post('/api/posts', async (req, res) => {
   try {
     const { pool } = await import('./src/lib/mysqlClient.js');
-    const { title, content, image_url, author } = req.body;
+    const { title, content, image_url, author, tags } = req.body;
     
     if (!title || !content) {
       return res.status(400).json({ error: 'Title and content are required' });
     }
     
     const [result] = await pool.execute(
-      'INSERT INTO posts (title, content, author, image_url) VALUES (?, ?, ?, ?)',
-      [title, content, author || null, image_url || null]
+      'INSERT INTO posts (title, content, author, image_url, tags) VALUES (?, ?, ?, ?, ?)',
+      [title, content, author || null, image_url || null, tags || null]
     );
     
     const [newPost] = await pool.execute('SELECT * FROM posts WHERE id = ?', [result.insertId]);
@@ -352,19 +424,49 @@ app.get('/api/videos', async (req, res) => {
 app.post('/api/videos', async (req, res) => {
   try {
     const { pool } = await import('./src/lib/mysqlClient.js');
-    const { title, description, created_by, source, url } = req.body;
+    const { title, description, created_by, source, url, tags } = req.body;
     if (!title || !source || !url) {
       return res.status(400).json({ error: 'Title, source, and url are required' });
     }
     const [result] = await pool.execute(
-      'INSERT INTO videos (title, description, created_by, source, url) VALUES (?, ?, ?, ?, ?)',
-      [title, description || null, created_by || null, source, url]
+      'INSERT INTO videos (title, description, created_by, source, url, tags) VALUES (?, ?, ?, ?, ?, ?)',
+      [title, description || null, created_by || null, source, url, tags || null]
     );
     const [rows] = await pool.execute('SELECT * FROM videos WHERE id = ?', [result.insertId]);
     res.status(201).json(rows[0]);
   } catch (error) {
     console.error('Error creating video:', error);
     res.status(500).json({ error: 'Failed to create video' });
+  }
+});
+
+// Like a video
+app.post('/api/videos/:id/like', async (req, res) => {
+  try {
+    const { pool } = await import('./src/lib/mysqlClient.js');
+    const { id } = req.params;
+    await pool.execute('UPDATE videos SET likes = likes + 1 WHERE id = ?', [id]);
+    const [rows] = await pool.execute('SELECT likes FROM videos WHERE id = ?', [id]);
+    if (!rows.length) return res.status(404).json({ error: 'Video not found' });
+    res.json({ likes: rows[0].likes });
+  } catch (error) {
+    console.error('Error liking video:', error);
+    res.status(500).json({ error: 'Failed to like video' });
+  }
+});
+
+// Unlike a video
+app.post('/api/videos/:id/unlike', async (req, res) => {
+  try {
+    const { pool } = await import('./src/lib/mysqlClient.js');
+    const { id } = req.params;
+    await pool.execute('UPDATE videos SET likes = GREATEST(likes - 1, 0) WHERE id = ?', [id]);
+    const [rows] = await pool.execute('SELECT likes FROM videos WHERE id = ?', [id]);
+    if (!rows.length) return res.status(404).json({ error: 'Video not found' });
+    res.json({ likes: rows[0].likes });
+  } catch (error) {
+    console.error('Error unliking video:', error);
+    res.status(500).json({ error: 'Failed to unlike video' });
   }
 });
 
@@ -495,20 +597,50 @@ app.get('/api/galleries', async (req, res) => {
 app.post('/api/galleries', async (req, res) => {
   try {
     const { pool } = await import('./src/lib/mysqlClient.js');
-    const { title, description, created_by, images } = req.body;
+    const { title, description, created_by, images, tags } = req.body;
     if (!title || !Array.isArray(images) || images.length === 0) {
       return res.status(400).json({ error: 'Title and at least one image are required' });
     }
     const imagesJson = JSON.stringify(images);
     const [result] = await pool.execute(
-      'INSERT INTO galleries (title, description, created_by, images) VALUES (?, ?, ?, ?)',
-      [title, description || null, created_by || null, imagesJson]
+      'INSERT INTO galleries (title, description, created_by, images, tags) VALUES (?, ?, ?, ?, ?)',
+      [title, description || null, created_by || null, imagesJson, tags || null]
     );
     const [rows] = await pool.execute('SELECT * FROM galleries WHERE id = ?', [result.insertId]);
     res.status(201).json(rows[0]);
   } catch (error) {
     console.error('Error creating gallery:', error);
     res.status(500).json({ error: 'Failed to create gallery' });
+  }
+});
+
+// Like a gallery
+app.post('/api/galleries/:id/like', async (req, res) => {
+  try {
+    const { pool } = await import('./src/lib/mysqlClient.js');
+    const { id } = req.params;
+    await pool.execute('UPDATE galleries SET likes = likes + 1 WHERE id = ?', [id]);
+    const [rows] = await pool.execute('SELECT likes FROM galleries WHERE id = ?', [id]);
+    if (!rows.length) return res.status(404).json({ error: 'Gallery not found' });
+    res.json({ likes: rows[0].likes });
+  } catch (error) {
+    console.error('Error liking gallery:', error);
+    res.status(500).json({ error: 'Failed to like gallery' });
+  }
+});
+
+// Unlike a gallery
+app.post('/api/galleries/:id/unlike', async (req, res) => {
+  try {
+    const { pool } = await import('./src/lib/mysqlClient.js');
+    const { id } = req.params;
+    await pool.execute('UPDATE galleries SET likes = GREATEST(likes - 1, 0) WHERE id = ?', [id]);
+    const [rows] = await pool.execute('SELECT likes FROM galleries WHERE id = ?', [id]);
+    if (!rows.length) return res.status(404).json({ error: 'Gallery not found' });
+    res.json({ likes: rows[0].likes });
+  } catch (error) {
+    console.error('Error unliking gallery:', error);
+    res.status(500).json({ error: 'Failed to unlike gallery' });
   }
 });
 

@@ -19,7 +19,9 @@ import {
   Share2, 
   Calendar,
   Camera,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Heart,
+  MessageCircle
 } from 'lucide-react';
 import { Navigation } from '@/components/Navigation';
 import { apiClient, API_ORIGIN } from '@/lib/apiClient';
@@ -30,7 +32,7 @@ import { FloatingShapes, GradientMesh } from '@/components/AnimatedBackground';
 
 const categories = ['All'];
 
-type Gallery = { id: number; title: string; description?: string; created_by?: string; images: string; created_at: string };
+type Gallery = { id: number; title: string; description?: string; created_by?: string; images: any; likes?: number; tags?: string; created_at: string };
 type GalleryImage = { url: string };
 type BlogPost = { id: number; title: string; image_url?: string; created_at: string };
 type UploadFile = { name: string; url: string; size: number; mtime: number };
@@ -45,7 +47,12 @@ const PhotoGallery = () => {
   const [posts, setPosts] = useState<BlogPost[]>([]);
   const [allUploads, setAllUploads] = useState<Array<{ id: string; title: string; url: string; uploadedAt: string }>>([]);
   const [loading, setLoading] = useState(true);
+  const [likedGalleries, setLikedGalleries] = useState<Set<number>>(new Set());
+  const [comments, setComments] = useState<Record<number, any[]>>({});
+  const [showComments, setShowComments] = useState<Record<number, boolean>>({});
+  const [newComment, setNewComment] = useState<Record<number, string>>({});
   const { elementRef, isVisible } = useScrollAnimation(0.1);
+  const currentUser = JSON.parse(localStorage.getItem('user') || 'null');
 
   const normalizeUrl = (raw: string): string => {
     if (!raw) return '/placeholder.svg';
@@ -55,8 +62,9 @@ const PhotoGallery = () => {
       return '/placeholder.svg';
     }
     if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return trimmed;
-    if (trimmed.startsWith('/uploads/')) return `${API_ORIGIN}${trimmed}`;
-    if (trimmed.startsWith('uploads/')) return `${API_ORIGIN}/${trimmed}`;
+    // For uploads, use the frontend URL since images are served from public/uploads
+    if (trimmed.startsWith('/uploads/')) return trimmed;
+    if (trimmed.startsWith('uploads/')) return `/${trimmed}`;
     // If no extension and not a known path, fallback
     if (!/\.[a-zA-Z0-9]{2,5}($|\?)/.test(trimmed)) return '/placeholder.svg';
     return trimmed;
@@ -76,7 +84,22 @@ const PhotoGallery = () => {
         const pRes = results[1];
         const uRes = results[2];
 
-        if (gRes.status === 'fulfilled') setGalleries(gRes.value);
+        if (gRes.status === 'fulfilled') {
+          setGalleries(gRes.value);
+          
+          // Load comments for each gallery
+          const commentsData: Record<number, any[]> = {};
+          for (const gallery of gRes.value) {
+            try {
+              const galleryComments = await apiClient.getComments('galleries', gallery.id);
+              commentsData[gallery.id] = galleryComments;
+            } catch (error) {
+              console.error(`Failed to load comments for gallery ${gallery.id}:`, error);
+              commentsData[gallery.id] = [];
+            }
+          }
+          setComments(commentsData);
+        }
         if (pRes.status === 'fulfilled') setPosts(pRes.value);
         if (uRes.status === 'fulfilled') {
           const uploadPhotos: Array<{ id: string; title: string; url: string; uploadedAt: string }> = ((uRes.value?.files || []) as UploadFile[])
@@ -94,18 +117,34 @@ const PhotoGallery = () => {
   }, []);
 
 
-  // Build a flat list of images from galleries
-  const galleryPhotos: Array<{ id: string; title: string; url: string; uploadedAt: string }> = galleries.flatMap((g) => {
+  // Build a flat list of images from galleries (robust to JSON/array/string)
+  const galleryPhotos: Array<{ id: string; title: string; url: string; uploadedAt: string; likes?: number; galleryId?: number }> = galleries.flatMap((g) => {
     let imgs: GalleryImage[] = [];
-    try { imgs = JSON.parse(g.images) as GalleryImage[]; } catch {}
-    const photos = imgs.map((img, idx) => ({ 
-      id: `${g.id}-${idx}`, 
-      title: g.title, 
-      url: normalizeUrl(img.url), 
-      uploadedAt: g.created_at 
+    const raw = (g as any).images;
+    if (Array.isArray(raw)) {
+      imgs = raw as GalleryImage[];
+    } else if (typeof raw === 'string') {
+      try { imgs = JSON.parse(raw) as GalleryImage[]; } catch { imgs = []; }
+    } else if (raw && typeof raw === 'object') {
+      // MySQL JSON may come through as object already
+      // If it's a dict with numeric keys, convert to array
+      const maybeArray = Object.values(raw) as any[];
+      if (maybeArray.every((v) => v && typeof v === 'object' && 'url' in v)) {
+        imgs = maybeArray as GalleryImage[];
+      }
+    }
+
+    const photos = imgs.map((img, idx) => ({
+      id: `${g.id}-${idx}`,
+      title: g.title,
+      url: normalizeUrl((img as any)?.url || ''),
+      uploadedAt: g.created_at,
+      likes: g.likes,
+      galleryId: g.id,
     }));
+
     if (photos.length === 0) {
-      photos.push({ id: `${g.id}-0`, title: g.title, url: '/placeholder.svg', uploadedAt: g.created_at });
+      photos.push({ id: `${g.id}-0`, title: g.title, url: '/uploads/placeholder.svg', uploadedAt: g.created_at, likes: g.likes, galleryId: g.id });
     }
     return photos;
   });
@@ -118,10 +157,20 @@ const PhotoGallery = () => {
       uploadedAt: p.created_at,
     }));
 
-  const allPhotos = [...allUploads, ...galleryPhotos, ...postPhotos];
+  // Show only gallery photos (hide raw uploads and blog post images)
+  const allPhotos = [...galleryPhotos];
 
   const filteredPhotos = allPhotos.filter((photo) => {
-    const matchesSearch = !searchQuery || photo.title.toLowerCase().includes(searchQuery.toLowerCase());
+    const q = searchQuery.toLowerCase();
+    const g = galleries.find(g => g.id === photo.galleryId);
+    const extractTags = (raw?: string): string[] => {
+      if (!raw) return [];
+      const s = raw.trim();
+      try { const parsed = JSON.parse(s); if (Array.isArray(parsed)) return parsed.map(x => String(x).toLowerCase()); } catch {}
+      return s.split(/[,#\s]+/).map(t => t.trim().toLowerCase()).filter(Boolean);
+    };
+    const tagTokens = extractTags(g?.tags);
+    const matchesSearch = !q || photo.title.toLowerCase().includes(q) || tagTokens.some(t => t.includes(q));
     const matchesCategory = selectedCategory === 'All';
     return matchesSearch && matchesCategory;
   });
@@ -151,6 +200,54 @@ const PhotoGallery = () => {
     } else {
       navigator.clipboard.writeText(photo.url);
       alert('Photo URL copied to clipboard!');
+    }
+  };
+
+  const handleLikeGallery = async (galleryId: number) => {
+    try {
+      if (likedGalleries.has(galleryId)) {
+        await apiClient.unlikeGallery(galleryId);
+        setLikedGalleries(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(galleryId);
+          return newSet;
+        });
+      } else {
+        await apiClient.likeGallery(galleryId);
+        setLikedGalleries(prev => new Set(prev).add(galleryId));
+      }
+      
+      // Refresh galleries to get updated like count
+      const updatedGalleries = await apiClient.getGalleries();
+      setGalleries(updatedGalleries);
+    } catch (error) {
+      console.error('Failed to like/unlike gallery:', error);
+    }
+  };
+
+  const toggleComments = (galleryId: number) => {
+    setShowComments(prev => ({
+      ...prev,
+      [galleryId]: !prev[galleryId]
+    }));
+  };
+
+  const handleAddComment = async (galleryId: number) => {
+    const commentText = newComment[galleryId]?.trim();
+    if (!commentText) return;
+
+    try {
+      await apiClient.addComment('galleries', galleryId, commentText, currentUser?.username);
+      setNewComment(prev => ({ ...prev, [galleryId]: '' }));
+      
+      // Refresh comments
+      const updatedComments = await apiClient.getComments('galleries', galleryId);
+      setComments(prev => ({
+        ...prev,
+        [galleryId]: updatedComments
+      }));
+    } catch (error) {
+      console.error('Failed to add comment:', error);
     }
   };
 
@@ -310,7 +407,19 @@ const PhotoGallery = () => {
                   {/* Overlay Actions */}
                   <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                     <div className="flex items-center space-x-2">
-                      
+                      {photo.galleryId && (
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleLikeGallery(photo.galleryId!);
+                          }}
+                          className="h-8 w-8 p-0"
+                        >
+                          <Heart className="w-4 h-4" />
+                        </Button>
+                      )}
                       <Button
                         variant="secondary"
                         size="sm"
@@ -347,9 +456,24 @@ const PhotoGallery = () => {
                   
                   
                   <div className="flex items-center justify-between text-sm text-content-secondary">
-                    <div className="flex items-center space-x-1">
-                      <Calendar className="w-4 h-4" />
-                      <span>{photo.uploadedAt}</span>
+                    <div className="flex items-center space-x-4">
+                      <div className="flex items-center space-x-1">
+                        <Calendar className="w-4 h-4" />
+                        <span>{new Date(photo.uploadedAt).toLocaleDateString()}</span>
+                      </div>
+                      <div className="flex items-center space-x-1">
+                        <Heart className="w-4 h-4" />
+                        <span>{photo.likes ?? 0}</span>
+                      </div>
+                      {photo.galleryId && (
+                        <button className="flex items-center space-x-1" onClick={(e) => {
+                          e.stopPropagation();
+                          toggleComments(photo.galleryId!);
+                        }}>
+                          <MessageCircle className="w-4 h-4" />
+                          <span>{(comments[photo.galleryId]?.length ?? 0)}</span>
+                        </button>
+                      )}
                     </div>
                   </div>
                   
@@ -357,6 +481,50 @@ const PhotoGallery = () => {
                   
                   
                 </CardContent>
+                
+                {/* Comments section for gallery photos */}
+                {photo.galleryId && showComments[photo.galleryId] && (
+                  <div className="px-4 pb-4 border-t border-border">
+                    <h4 className="font-medium mb-3 mt-3">Comments</h4>
+                    
+                    {/* Add comment form */}
+                    <div className="flex gap-2 mb-4">
+                      <input
+                        type="text"
+                        placeholder="Add a comment..."
+                        value={newComment[photo.galleryId] || ''}
+                        onChange={(e) => setNewComment(prev => ({ ...prev, [photo.galleryId!]: e.target.value }))}
+                        className="flex-1 px-3 py-2 border border-border rounded-md bg-background text-foreground"
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                      <Button 
+                        size="sm" 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleAddComment(photo.galleryId!);
+                        }}
+                        disabled={!newComment[photo.galleryId]?.trim()}
+                      >
+                        Comment
+                      </Button>
+                    </div>
+                    
+                    {/* Comments list */}
+                    <div className="space-y-3">
+                      {comments[photo.galleryId]?.map(comment => (
+                        <div key={comment.id} className="bg-muted/50 p-3 rounded-md">
+                          <div className="text-sm text-muted-foreground mb-1">
+                            {comment.author || 'Anonymous'} • {new Date(comment.created_at).toLocaleDateString()}
+                          </div>
+                          <div className="text-foreground">{comment.text}</div>
+                        </div>
+                    ))}
+                      {(!comments[photo.galleryId] || comments[photo.galleryId].length === 0) && (
+                        <div className="text-muted-foreground text-sm">No comments yet. Be the first to comment!</div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </Card>
             ))}
           </div>

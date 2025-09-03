@@ -23,7 +23,7 @@ export const UserContentDashboard: React.FC<UserContentDashboardProps> = ({ user
   const [quoteCount, setQuoteCount] = useState<number>(0);
   const [galleryCount, setGalleryCount] = useState<number>(0);
   const [videoCount, setVideoCount] = useState<number>(0);
-  const [audioCount, setAudioCount] = useState<number>(0);
+  
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -40,17 +40,21 @@ export const UserContentDashboard: React.FC<UserContentDashboardProps> = ({ user
           return;
         }
         console.log('[Me] fetching posts for author:', author);
-        const data = await apiClient.getPosts(author);
-        const quotes = await apiClient.getQuotes(author);
-        const galleries = await apiClient.getGalleries(author);
-        const videos = await apiClient.getVideos(author);
-        const audios = await apiClient.getAudios(author);
-        console.log('[Me] fetched', data.length, 'posts');
-        setPosts(data);
-        setQuoteCount(quotes.length);
-        setGalleryCount(galleries.length);
-        setVideoCount(videos.length);
-        setAudioCount(audios.length);
+        const [postsRes, quotesRes, galleriesRes, videosRes] = await Promise.allSettled([
+          apiClient.getPosts(author),
+          apiClient.getQuotes(author),
+          apiClient.getGalleries(author),
+          apiClient.getVideos(author),
+        ]);
+        const postsList = postsRes.status === 'fulfilled' ? postsRes.value : [];
+        const quotesList = quotesRes.status === 'fulfilled' ? quotesRes.value : [];
+        const galleriesList = galleriesRes.status === 'fulfilled' ? galleriesRes.value : [];
+        const videosList = videosRes.status === 'fulfilled' ? videosRes.value : [];
+        console.log('[Me] fetched', postsList.length, 'posts');
+        setPosts(postsList);
+        setQuoteCount(quotesList.length);
+        setGalleryCount(galleriesList.length);
+        setVideoCount(videosList.length);
       } catch (err) {
         console.error("Fetch error:", err);
       } finally {
@@ -106,14 +110,6 @@ export const UserContentDashboard: React.FC<UserContentDashboardProps> = ({ user
       description: 'Your video content and tutorials'
     },
     {
-      id: 'audio',
-      title: 'Audios',
-      icon: Quote,
-      color: 'from-amber-500 to-yellow-500',
-      count: audioCount,
-      description: 'Your audio content and podcasts'
-    },
-    {
       id: 'quote',
       title: 'Quotes',
       icon: Quote,
@@ -122,6 +118,15 @@ export const UserContentDashboard: React.FC<UserContentDashboardProps> = ({ user
       description: 'Your inspirational quotes and thoughts'
     }
   ];
+
+  const handleDeletePost = async (postId: number) => {
+    try {
+      await apiClient.deletePost(postId);
+      setPosts(prev => prev.filter(p => p.id !== postId));
+    } catch (e) {
+      console.error('Delete post failed', e);
+    }
+  };
 
   if (loading) {
     return (
@@ -234,8 +239,13 @@ export const UserContentDashboard: React.FC<UserContentDashboardProps> = ({ user
                         </div>
                       </div>
                     </div>
-                    <Button variant="outline" size="sm" className="border-yellow-500/30 text-zinc-200 hover:bg-yellow-500/10">
-                      Edit
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="border-red-500/30 text-red-300 hover:bg-red-500/10"
+                      onClick={() => handleDeletePost(post.id)}
+                    >
+                      Delete
                     </Button>
                   </div>
                 </div>
