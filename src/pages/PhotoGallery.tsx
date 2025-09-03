@@ -15,89 +15,177 @@ import {
   Grid3X3, 
   List, 
   Upload, 
-  Heart, 
   Download, 
   Share2, 
-  Eye,
   Calendar,
-  User,
-  Tag,
-  Filter,
-  Sparkles,
   Camera,
   Image as ImageIcon,
-  Trash2
+  Heart,
+  MessageCircle
 } from 'lucide-react';
 import { Navigation } from '@/components/Navigation';
+import { apiClient, API_ORIGIN } from '@/lib/apiClient';
 import { useScrollAnimation } from '@/hooks/useScrollAnimation';
 import { FloatingShapes, GradientMesh } from '@/components/AnimatedBackground';
 import { apiClient, PhotoItem } from '@/lib/apiClient';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 
-const mockPhotos: PhotoItem[] = [];
+//
 
-const categories = ['All', 'Nature', 'Landscape', 'Urban', 'Art', 'Portrait'];
+const categories = ['All'];
+
+type Gallery = { id: number; title: string; description?: string; created_by?: string; images: any; likes?: number; tags?: string; created_at: string };
+type GalleryImage = { url: string };
+type BlogPost = { id: number; title: string; image_url?: string; created_at: string };
+type UploadFile = { name: string; url: string; size: number; mtime: number };
 
 const PhotoGallery = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [sortBy, setSortBy] = useState<'latest' | 'popular' | 'trending'>('latest');
-  const [likedPhotos, setLikedPhotos] = useState<Set<number>>(new Set());
-  const [selectedPhoto, setSelectedPhoto] = useState<PhotoItem | null>(null);
-  const [photos, setPhotos] = useState<PhotoItem[]>(mockPhotos);
+  const [selectedPhoto, setSelectedPhoto] = useState<{ title: string; url: string; uploadedAt: string } | null>(null);
+  const [galleries, setGalleries] = useState<Gallery[]>([]);
+  const [posts, setPosts] = useState<BlogPost[]>([]);
+  const [allUploads, setAllUploads] = useState<Array<{ id: string; title: string; url: string; uploadedAt: string }>>([]);
+  const [loading, setLoading] = useState(true);
+  const [likedGalleries, setLikedGalleries] = useState<Set<number>>(new Set());
+  const [comments, setComments] = useState<Record<number, any[]>>({});
+  const [showComments, setShowComments] = useState<Record<number, boolean>>({});
+  const [newComment, setNewComment] = useState<Record<number, string>>({});
   const { elementRef, isVisible } = useScrollAnimation(0.1);
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [newPhoto, setNewPhoto] = useState<{title: string; url?: string; dataUrl?: string; description?: string; category?: string; tags?: string;}>({ title: '' });
   const currentUser = JSON.parse(localStorage.getItem('user') || 'null');
-  const isAdmin = !!currentUser && currentUser.role === 'admin';
+
+  const normalizeUrl = (raw: string): string => {
+    if (!raw) return '/placeholder.svg';
+    const trimmed = raw.trim();
+    // Treat obviously invalid values as missing
+    if (trimmed === 'null' || trimmed === 'undefined' || /[<>]/.test(trimmed)) {
+      return '/placeholder.svg';
+    }
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return trimmed;
+    // For uploads, use the frontend URL since images are served from public/uploads
+    if (trimmed.startsWith('/uploads/')) return trimmed;
+    if (trimmed.startsWith('uploads/')) return `/${trimmed}`;
+    // If no extension and not a known path, fallback
+    if (!/\.[a-zA-Z0-9]{2,5}($|\?)/.test(trimmed)) return '/placeholder.svg';
+    return trimmed;
+  };
 
   useEffect(() => {
     (async () => {
+      setLoading(true);
       try {
-        const list = await apiClient.getPhotos();
-        setPhotos(list);
-      } catch {}
+        const results = await Promise.allSettled([
+          apiClient.getGalleries(),
+          apiClient.getPosts(),
+          apiClient.listUploads(),
+        ]);
+
+        const gRes = results[0];
+        const pRes = results[1];
+        const uRes = results[2];
+
+        if (gRes.status === 'fulfilled') {
+          setGalleries(gRes.value);
+          
+          // Load comments for each gallery
+          const commentsData: Record<number, any[]> = {};
+          for (const gallery of gRes.value) {
+            try {
+              const galleryComments = await apiClient.getComments('galleries', gallery.id);
+              commentsData[gallery.id] = galleryComments;
+            } catch (error) {
+              console.error(`Failed to load comments for gallery ${gallery.id}:`, error);
+              commentsData[gallery.id] = [];
+            }
+          }
+          setComments(commentsData);
+        }
+        if (pRes.status === 'fulfilled') setPosts(pRes.value);
+        if (uRes.status === 'fulfilled') {
+          const uploadPhotos: Array<{ id: string; title: string; url: string; uploadedAt: string }> = ((uRes.value?.files || []) as UploadFile[])
+            .map((f) => ({ id: `upload-${f.name}`, title: f.name, url: normalizeUrl(f.url), uploadedAt: new Date(f.mtime).toISOString() }));
+          setAllUploads(uploadPhotos);
+        } else {
+          setAllUploads([]);
+        }
+      } catch (e) {
+        console.error('Failed to load gallery data:', e);
+      } finally {
+        setLoading(false);
+      }
     })();
   }, []);
 
-  // Filter and sort photos
-  const filteredPhotos = photos.filter(photo => {
-    const matchesSearch = !searchQuery || 
-      photo.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      photo.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      photo.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
-    
-    const matchesCategory = selectedCategory === 'All' || photo.category === selectedCategory;
-    
+
+  // Build a flat list of images from galleries (robust to JSON/array/string)
+  const galleryPhotos: Array<{ id: string; title: string; url: string; uploadedAt: string; likes?: number; galleryId?: number }> = galleries.flatMap((g) => {
+    let imgs: GalleryImage[] = [];
+    const raw = (g as any).images;
+    if (Array.isArray(raw)) {
+      imgs = raw as GalleryImage[];
+    } else if (typeof raw === 'string') {
+      try { imgs = JSON.parse(raw) as GalleryImage[]; } catch { imgs = []; }
+    } else if (raw && typeof raw === 'object') {
+      // MySQL JSON may come through as object already
+      // If it's a dict with numeric keys, convert to array
+      const maybeArray = Object.values(raw) as any[];
+      if (maybeArray.every((v) => v && typeof v === 'object' && 'url' in v)) {
+        imgs = maybeArray as GalleryImage[];
+      }
+    }
+
+    const photos = imgs.map((img, idx) => ({
+      id: `${g.id}-${idx}`,
+      title: g.title,
+      url: normalizeUrl((img as any)?.url || ''),
+      uploadedAt: g.created_at,
+      likes: g.likes,
+      galleryId: g.id,
+    }));
+
+    if (photos.length === 0) {
+      photos.push({ id: `${g.id}-0`, title: g.title, url: '/uploads/placeholder.svg', uploadedAt: g.created_at, likes: g.likes, galleryId: g.id });
+    }
+    return photos;
+  });
+
+  const postPhotos: Array<{ id: string; title: string; url: string; uploadedAt: string }> = posts
+    .map((p) => ({
+      id: `post-${p.id}`,
+      title: p.title,
+      url: p.image_url && p.image_url.trim() !== '' ? normalizeUrl(p.image_url) : '/placeholder.svg',
+      uploadedAt: p.created_at,
+    }));
+
+  // Show only gallery photos (hide raw uploads and blog post images)
+  const allPhotos = [...galleryPhotos];
+
+  const filteredPhotos = allPhotos.filter((photo) => {
+    const q = searchQuery.toLowerCase();
+    const g = galleries.find(g => g.id === photo.galleryId);
+    const extractTags = (raw?: string): string[] => {
+      if (!raw) return [];
+      const s = raw.trim();
+      try { const parsed = JSON.parse(s); if (Array.isArray(parsed)) return parsed.map(x => String(x).toLowerCase()); } catch {}
+      return s.split(/[,#\s]+/).map(t => t.trim().toLowerCase()).filter(Boolean);
+    };
+    const tagTokens = extractTags(g?.tags);
+    const matchesSearch = !q || photo.title.toLowerCase().includes(q) || tagTokens.some(t => t.includes(q));
+    const matchesCategory = selectedCategory === 'All';
     return matchesSearch && matchesCategory;
   });
 
   const sortedPhotos = [...filteredPhotos].sort((a, b) => {
     switch (sortBy) {
-      case 'popular':
-        return b.views - a.views;
-      case 'trending':
-        return b.likes - a.likes;
       default:
         return new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime();
     }
   });
 
-  const handleLike = (photoId: number) => {
-    setLikedPhotos(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(photoId)) {
-        newSet.delete(photoId);
-      } else {
-        newSet.add(photoId);
-      }
-      return newSet;
-    });
-  };
-
-  const handleDownload = (photo: PhotoItem) => {
+  const handleDownload = (photo: { title: string; url: string }) => {
     // Simulate download
     const link = document.createElement('a');
     link.href = photo.url;
@@ -105,7 +193,7 @@ const PhotoGallery = () => {
     link.click();
   };
 
-  const handleShare = (photo: PhotoItem) => {
+  const handleShare = (photo: { title: string; url: string }) => {
     if (navigator.share) {
       navigator.share({
         title: photo.title,
@@ -118,7 +206,55 @@ const PhotoGallery = () => {
     }
   };
 
-  const handlePhotoClick = (photo: PhotoItem) => {
+  const handleLikeGallery = async (galleryId: number) => {
+    try {
+      if (likedGalleries.has(galleryId)) {
+        await apiClient.unlikeGallery(galleryId);
+        setLikedGalleries(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(galleryId);
+          return newSet;
+        });
+      } else {
+        await apiClient.likeGallery(galleryId);
+        setLikedGalleries(prev => new Set(prev).add(galleryId));
+      }
+      
+      // Refresh galleries to get updated like count
+      const updatedGalleries = await apiClient.getGalleries();
+      setGalleries(updatedGalleries);
+    } catch (error) {
+      console.error('Failed to like/unlike gallery:', error);
+    }
+  };
+
+  const toggleComments = (galleryId: number) => {
+    setShowComments(prev => ({
+      ...prev,
+      [galleryId]: !prev[galleryId]
+    }));
+  };
+
+  const handleAddComment = async (galleryId: number) => {
+    const commentText = newComment[galleryId]?.trim();
+    if (!commentText) return;
+
+    try {
+      await apiClient.addComment('galleries', galleryId, commentText, currentUser?.username);
+      setNewComment(prev => ({ ...prev, [galleryId]: '' }));
+      
+      // Refresh comments
+      const updatedComments = await apiClient.getComments('galleries', galleryId);
+      setComments(prev => ({
+        ...prev,
+        [galleryId]: updatedComments
+      }));
+    } catch (error) {
+      console.error('Failed to add comment:', error);
+    }
+  };
+
+  const handlePhotoClick = (photo: { title: string; url: string; uploadedAt: string }) => {
     setSelectedPhoto(photo);
   };
 
@@ -330,7 +466,7 @@ const PhotoGallery = () => {
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center space-x-2">
               <span className="text-sm text-content-secondary">
-                Showing {filteredPhotos.length} of {mockPhotos.length} photos
+                Showing {filteredPhotos.length} of {allPhotos.length} photos
               </span>
               {(searchQuery || selectedCategory !== 'All') && (
                 <Badge variant="secondary" className="text-xs">
@@ -359,6 +495,7 @@ const PhotoGallery = () => {
                   <img
                     src={photo.url}
                     alt={photo.title}
+                    onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/placeholder.svg'; }}
                     className={`w-full object-cover transition-transform duration-300 group-hover:scale-105 ${
                       viewMode === 'grid' ? 'h-64' : 'h-32'
                     }`}
@@ -368,17 +505,19 @@ const PhotoGallery = () => {
                   {/* Overlay Actions */}
                   <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                     <div className="flex items-center space-x-2">
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleLike(photo.id);
-                        }}
-                        className={`h-8 w-8 p-0 ${likedPhotos.has(photo.id) ? 'text-red-500' : ''}`}
-                      >
-                        <Heart className="w-4 h-4" />
-                      </Button>
+                      {photo.galleryId && (
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleLikeGallery(photo.galleryId!);
+                          }}
+                          className="h-8 w-8 p-0"
+                        >
+                          <Heart className="w-4 h-4" />
+                        </Button>
+                      )}
                       <Button
                         variant="secondary"
                         size="sm"
@@ -415,9 +554,7 @@ const PhotoGallery = () => {
                     </div>
                   </div>
 
-                  <Badge className="absolute top-4 left-4 bg-brand-accent text-white">
-                    {photo.category}
-                  </Badge>
+                  
                 </div>
                 
                 <CardContent className="p-4">
@@ -425,54 +562,78 @@ const PhotoGallery = () => {
                     {photo.title}
                   </h3>
                   
-                  {viewMode === 'list' && (
-                    <p className="text-content-secondary mb-3 line-clamp-2 text-sm">
-                      {photo.description}
-                    </p>
-                  )}
+                  
                   
                   <div className="flex items-center justify-between text-sm text-content-secondary">
-                    <div className="flex items-center space-x-1">
-                      <User className="w-4 h-4" />
-                      <span>{photo.photographer}</span>
-                    </div>
-                    <div className="flex items-center space-x-1">
-                      <Calendar className="w-4 h-4" />
-                      <span>{photo.uploadedAt}</span>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center justify-between mt-3">
-                    <div className="flex items-center space-x-4 text-sm text-content-secondary">
+                    <div className="flex items-center space-x-4">
                       <div className="flex items-center space-x-1">
-                        <Eye className="w-4 h-4" />
-                        <span>{photo.views}</span>
+                        <Calendar className="w-4 h-4" />
+                        <span>{new Date(photo.uploadedAt).toLocaleDateString()}</span>
                       </div>
                       <div className="flex items-center space-x-1">
                         <Heart className="w-4 h-4" />
-                        <span>{photo.likes}</span>
+                        <span>{photo.likes ?? 0}</span>
                       </div>
-                      <div className="flex items-center space-x-1">
-                        <Download className="w-4 h-4" />
-                        <span>{photo.downloads}</span>
-                      </div>
+                      {photo.galleryId && (
+                        <button className="flex items-center space-x-1" onClick={(e) => {
+                          e.stopPropagation();
+                          toggleComments(photo.galleryId!);
+                        }}>
+                          <MessageCircle className="w-4 h-4" />
+                          <span>{(comments[photo.galleryId]?.length ?? 0)}</span>
+                        </button>
+                      )}
                     </div>
                   </div>
                   
-                  <div className="flex flex-wrap gap-1 mt-3">
-                    {photo.tags.slice(0, 3).map((tag) => (
-                      <Badge key={tag} variant="outline" className="text-xs">
-                        <Tag className="w-3 h-3 mr-1" />
-                        {tag}
-                      </Badge>
-                    ))}
-                    {photo.tags.length > 3 && (
-                      <Badge variant="outline" className="text-xs">
-                        +{photo.tags.length - 3}
-                      </Badge>
-                    )}
-                  </div>
+                  
+                  
+                  
                 </CardContent>
+                
+                {/* Comments section for gallery photos */}
+                {photo.galleryId && showComments[photo.galleryId] && (
+                  <div className="px-4 pb-4 border-t border-border">
+                    <h4 className="font-medium mb-3 mt-3">Comments</h4>
+                    
+                    {/* Add comment form */}
+                    <div className="flex gap-2 mb-4">
+                      <input
+                        type="text"
+                        placeholder="Add a comment..."
+                        value={newComment[photo.galleryId] || ''}
+                        onChange={(e) => setNewComment(prev => ({ ...prev, [photo.galleryId!]: e.target.value }))}
+                        className="flex-1 px-3 py-2 border border-border rounded-md bg-background text-foreground"
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                      <Button 
+                        size="sm" 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleAddComment(photo.galleryId!);
+                        }}
+                        disabled={!newComment[photo.galleryId]?.trim()}
+                      >
+                        Comment
+                      </Button>
+                    </div>
+                    
+                    {/* Comments list */}
+                    <div className="space-y-3">
+                      {comments[photo.galleryId]?.map(comment => (
+                        <div key={comment.id} className="bg-muted/50 p-3 rounded-md">
+                          <div className="text-sm text-muted-foreground mb-1">
+                            {comment.author || 'Anonymous'} • {new Date(comment.created_at).toLocaleDateString()}
+                          </div>
+                          <div className="text-foreground">{comment.text}</div>
+                        </div>
+                    ))}
+                      {(!comments[photo.galleryId] || comments[photo.galleryId].length === 0) && (
+                        <div className="text-muted-foreground text-sm">No comments yet. Be the first to comment!</div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </Card>
             ))}
           </div>
@@ -501,11 +662,7 @@ const PhotoGallery = () => {
 
           {/* Load More Button */}
           {filteredPhotos.length > 0 && (
-            <div className="text-center mt-12">
-              <Button variant="outline" size="lg" className="px-8">
-                Load More Photos
-              </Button>
-            </div>
+            <div className="text-center mt-12"></div>
           )}
         </div>
       </section>
@@ -531,28 +688,14 @@ const PhotoGallery = () => {
             </div>
             <div className="p-6">
               <h2 className="text-2xl font-bold mb-2 text-content-primary">{selectedPhoto.title}</h2>
-              <p className="text-content-secondary mb-4">{selectedPhoto.description}</p>
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center space-x-4 text-sm text-content-secondary">
-                  <div className="flex items-center space-x-1">
-                    <User className="w-4 h-4" />
-                    <span>{selectedPhoto.photographer}</span>
-                  </div>
                   <div className="flex items-center space-x-1">
                     <Calendar className="w-4 h-4" />
                     <span>{selectedPhoto.uploadedAt}</span>
                   </div>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleLike(selectedPhoto.id)}
-                    className={likedPhotos.has(selectedPhoto.id) ? 'text-brand-accent' : ''}
-                  >
-                    <Heart className="w-4 h-4 mr-2" />
-                    {selectedPhoto.likes}
-                  </Button>
                   <Button
                     variant="outline"
                     size="sm"
@@ -570,14 +713,6 @@ const PhotoGallery = () => {
                     Share
                   </Button>
                 </div>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {selectedPhoto.tags.map((tag) => (
-                  <Badge key={tag} variant="secondary">
-                    <Tag className="w-3 h-3 mr-1" />
-                    {tag}
-                  </Badge>
-                ))}
               </div>
             </div>
           </div>

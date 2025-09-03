@@ -6,12 +6,12 @@ import {
   Quote, 
   ExternalLink, 
   Video, 
-  Music, 
   Upload,
   Code,
   Calendar
 } from "lucide-react";
 import { useScrollAnimation } from "@/hooks/useScrollAnimation";
+import { Link } from "react-router-dom";
 import { FloatingShapes, GradientMesh } from "./AnimatedBackground";
 
 const contentTypes = [
@@ -49,13 +49,6 @@ const contentTypes = [
     icon: Video,
     color: "from-red-400 to-pink-500",
     delay: 0.4
-  },
-  {
-    title: "Audio Post",
-    description: "Podcasts and audio content with waveform visualization",
-    icon: Music,
-    color: "from-indigo-400 to-purple-500",
-    delay: 0.5
   },
   {
     title: "File Upload",
@@ -172,10 +165,10 @@ export const ContentTypesGrid = () => {
         {/* Enhanced CTA Section */}
         <div className={`text-center transition-all duration-1000 delay-1000 ${isVisible ? 'animate-slide-in-up' : 'opacity-0 translate-y-10'}`}>
           <div className="inline-flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-6">
-            <button className="btn-enhanced glow-border group bg-gradient-to-r from-brand-primary to-brand-secondary text-white px-10 py-5 rounded-xl text-lg font-medium relative overflow-hidden">
+            <Link to="/me" className="btn-enhanced glow-border group bg-gradient-to-r from-brand-primary to-brand-secondary text-white px-10 py-5 rounded-xl text-lg font-medium relative overflow-hidden inline-flex items-center">
               <span className="relative z-10">Start Creating Content</span>
               <div className="ml-2 w-2 h-2 bg-white rounded-full animate-pulse-soft"></div>
-            </button>
+            </Link>
             <button className="magnetic-hover px-10 py-5 rounded-xl text-lg font-medium border-2 border-brand-primary/30 text-brand-primary hover:bg-brand-primary hover:text-white transition-all duration-300">
               View Examples
             </button>

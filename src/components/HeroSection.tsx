@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { Link } from "react-router-dom";
 import { ArrowRight, Sparkles, Star, Zap, Heart, Play, ChevronDown, FileText, Image, Video } from "lucide-react";
 import heroImage from "@/assets/hero-bg.jpg";
 import { AnimatedBackground, FloatingShapes, GradientMesh } from "./AnimatedBackground";
@@ -83,17 +84,13 @@ export const HeroSection = () => {
             
             {/* Enhanced CTA Buttons */}
             <div className={`flex flex-col sm:flex-row items-start space-y-4 sm:space-y-0 sm:space-x-6 transition-all duration-1000 delay-400 ${isVisible ? 'animate-slide-in-left' : 'opacity-0 -translate-x-10'}`}>
-              <Button 
-                variant="accent" 
-                size="lg" 
-                className="text-lg px-8 py-4 h-auto btn-enhanced glow-border group relative overflow-hidden"
-              >
+              <Link to="/me" className="inline-flex items-center text-lg px-8 py-4 h-auto btn-enhanced glow-border group relative overflow-hidden"> 
                 <span className="relative z-10 flex items-center">
                   Start Creating
                   <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform duration-300" />
                 </span>
                 <div className="absolute inset-0 bg-gradient-to-r from-brand-accent to-brand-secondary opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-              </Button>
+              </Link>
               
               <Button 
                 variant="outline" 

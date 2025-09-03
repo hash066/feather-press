@@ -92,9 +92,18 @@ const ChyrpBlog: React.FC = () => {
 
   // Filter and sort posts
   const filteredPosts = posts.filter(post => {
-    const matchesSearch = !searchQuery || 
-      post.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      post.content.toLowerCase().includes(searchQuery.toLowerCase());
+    const q = searchQuery.toLowerCase();
+    const extractTags = (raw?: string): string[] => {
+      if (!raw) return [];
+      const s = raw.trim();
+      try { const parsed = JSON.parse(s); if (Array.isArray(parsed)) return parsed.map(x => String(x).toLowerCase()); } catch {}
+      return s.split(/[,#\s]+/).map(t => t.trim().toLowerCase()).filter(Boolean);
+    };
+    const tags = extractTags(post.tags);
+    const matchesSearch = !q || 
+      post.title.toLowerCase().includes(q) ||
+      post.content.toLowerCase().includes(q) ||
+      tags.some(t => t.includes(q));
     
     // For now, we'll show all posts regardless of category since we don't have categories in the database yet
     const matchesCategory = selectedCategory === 'All';
