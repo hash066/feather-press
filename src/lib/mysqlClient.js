@@ -1,6 +1,21 @@
 import mysql from 'mysql2/promise';
+import fs from 'fs';
+import path from 'path';
 
 // Database configuration
+
+const shouldUseSsl = String(process.env.MYSQL_SSL || '').toLowerCase() === 'true';
+const rejectUnauthorized = String(process.env.MYSQL_SSL_REJECT_UNAUTHORIZED || 'true').toLowerCase() === 'true';
+const caPath = process.env.MYSQL_SSL_CA_PATH ? path.resolve(process.env.MYSQL_SSL_CA_PATH) : undefined;
+let sslConfig = undefined;
+if (shouldUseSsl) {
+  sslConfig = { rejectUnauthorized };
+  if (caPath && fs.existsSync(caPath)) {
+    try {
+      sslConfig.ca = fs.readFileSync(caPath, 'utf8');
+    } catch {}
+  }
+}
 
 const dbConfig = {
   host: process.env.MYSQL_HOST || 'localhost',
@@ -10,7 +25,8 @@ const dbConfig = {
   database: process.env.MYSQL_DATABASE || 'feather_press',
   waitForConnections: true,
   connectionLimit: 10,
-  queueLimit: 0
+  queueLimit: 0,
+  ssl: sslConfig,
 };
 
 // Create connection pool
