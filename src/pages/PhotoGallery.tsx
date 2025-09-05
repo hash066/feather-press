@@ -27,7 +27,6 @@ import { Navigation } from '@/components/Navigation';
 import { apiClient, API_ORIGIN } from '@/lib/apiClient';
 import { useScrollAnimation } from '@/hooks/useScrollAnimation';
 import { FloatingShapes, GradientMesh } from '@/components/AnimatedBackground';
-import { apiClient, PhotoItem } from '@/lib/apiClient';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 
