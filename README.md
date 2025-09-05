@@ -1,73 +1,86 @@
-# Welcome to your Lovable project
+Here’s a concise README you can use. Want me to save it into README.md?
 
-## Project info
+# Feather Press
 
-**URL**: https://lovable.dev/projects/75d2384f-7d03-4e4d-9db3-52364c078158
+Full‑stack blog/quotes app using React (Vite) + Node/Express + MySQL.
 
-## How can I edit this code?
+## Stack
+- Frontend: Vite, React, TypeScript, Tailwind, shadcn/ui
+- Backend: Node.js, Express, Multer
+- DB: MySQL (mysql2/promise)
 
-There are several ways of editing your application.
+## Project Structure
+- [server.js](cci:7://file:///d:/RVCE/dupe/feather-press/server.js:0:0-0:0) — Express API server
+- `src/` — React app
+- [src/lib/mysqlClient.js](cci:7://file:///d:/RVCE/dupe/feather-press/src/lib/mysqlClient.js:0:0-0:0) — MySQL pool and init
+- `public/uploads/` — Uploaded files
+- [database-setup.sql](cci:7://file:///d:/RVCE/dupe/feather-press/database-setup.sql:0:0-0:0) — Basic DB setup
+- [run_sql_script.bat](cci:7://file:///d:/RVCE/dupe/feather-press/run_sql_script.bat:0:0-0:0) — Runs SQL via XAMPP
+- [.env](cci:7://file:///d:/RVCE/dupe/feather-press/.env:0:0-0:0) — Environment variables
 
-**Use Lovable**
+## Prerequisites
+- Node.js 18+
+- XAMPP MySQL (or standalone MySQL)
+- Git
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/75d2384f-7d03-4e4d-9db3-52364c078158) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+## Setup
+1) Clone and install
+```
+git clone https://github.com/hash066/feather-press.git
+cd feather-press
+npm install
 ```
 
-**Edit a file directly in GitHub**
+2) Environment
+Create [.env](cci:7://file:///d:/RVCE/dupe/feather-press/.env:0:0-0:0):
+```
+MYSQL_HOST=localhost
+MYSQL_PORT=3307
+MYSQL_USER=root
+MYSQL_PASSWORD=Ganesha123*
+MYSQL_DATABASE=feather_press
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+PORT=3001
+VITE_API_BASE_URL=http://localhost:3001/api
+```
 
-**Use GitHub Codespaces**
+3) Start MySQL (XAMPP)
+- Open XAMPP Control Panel
+- Start MySQL (set port to 3307 in [C:\xampp\mysql\my.ini](cci:7://file:///C:/xampp/mysql/my.ini:0:0-0:0) if 3306 is busy)
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+4) Initialize database
+- Option A: Double‑click [run_sql_script.bat](cci:7://file:///d:/RVCE/dupe/feather-press/run_sql_script.bat:0:0-0:0)
+- Option B (phpMyAdmin): import [database-setup.sql](cci:7://file:///d:/RVCE/dupe/feather-press/database-setup.sql:0:0-0:0) into `feather_press`
 
-## What technologies are used for this project?
+5) Run servers
+- Backend: `npm run dev:server` → check http://localhost:3001/
+- Frontend: `npm run dev` → open printed URL (e.g., http://localhost:5173)
 
-This project is built with:
+## API (quick)
+Base: `http://localhost:3001/api`
+- `POST /auth/register` `{ username, password }`
+- `POST /auth/login` `{ username, password }`
+- `GET /posts`, `POST /posts`, `PUT /posts/:id`, `DELETE /posts/:id`
+- `GET /quotes`, `POST /quotes`, `POST /quotes/:id/like`, `POST /quotes/:id/unlike`
+- `POST /upload` (multipart), `GET /uploads`
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+## Common Issues
+- Login/Registration fails:
+  - Ensure backend is running at `http://localhost:3001/`
+  - Ensure `VITE_API_BASE_URL` matches backend
+  - Check MySQL connects with [.env](cci:7://file:///d:/RVCE/dupe/feather-press/.env:0:0-0:0) values
+- MySQL access denied (1045):
+  - Confirm port/credentials
+  - In MySQL: `ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY 'YourPassword'; FLUSH PRIVILEGES;`
+  - Restart backend
 
-## How can I deploy this project?
+## Scripts
+- `npm run dev` — Frontend dev server
+- `npm run dev:server` — Backend server
+- `npm run dev:full` — Run both
+- `npm run build` — Frontend build
+- `npm run preview` — Preview build
 
-Simply open [Lovable](https://lovable.dev/projects/75d2384f-7d03-4e4d-9db3-52364c078158) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+## Notes
+- [.env](cci:7://file:///d:/RVCE/dupe/feather-press/.env:0:0-0:0) and `public/uploads/` are ignored by Git
+- Use [env.example](cci:7://file:///d:/RVCE/dupe/feather-press/env.example:0:0-0:0) to share config expectations
