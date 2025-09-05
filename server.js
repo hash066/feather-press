@@ -780,6 +780,24 @@ app.post('/api/galleries/:id/unlike', async (req, res) => {
   }
 });
 
+// Root route - welcome page
+app.get('/', (req, res) => {
+  res.json({
+    message: 'Welcome to Feather Press API',
+    status: 'Server is running',
+    endpoints: {
+      health: '/api/health',
+      posts: '/api/posts',
+      quotes: '/api/quotes',
+      galleries: '/api/galleries',
+      audios: '/api/audios',
+      videos: '/api/videos',
+      users: '/api/users'
+    },
+    frontend: 'http://localhost:8080'
+  });
+});
+
 // Start server
 async function startServer() {
   try {
