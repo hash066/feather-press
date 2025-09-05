@@ -7,6 +7,7 @@ import cors from 'cors';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import { uploadFile as uploadToObjectStore, getProvider as getStorageProvider } from './src/lib/storage.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -37,7 +38,7 @@ async function getUserRole(pool, userId, username) {
   }
 }
 
-// Static uploads directory
+// Static uploads directory (used when STORAGE_PROVIDER=local)
 const uploadsDir = path.resolve('public', 'uploads');
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
@@ -45,7 +46,8 @@ if (!fs.existsSync(uploadsDir)) {
 app.use('/uploads', express.static(uploadsDir));
 
 // Multer setup for image and video uploads
-const storage = multer.diskStorage({
+const useExternalStorage = (getStorageProvider() !== 'local');
+const localDiskStorage = multer.diskStorage({
   destination: function (req, file, cb) {
     cb(null, uploadsDir);
   },
@@ -55,6 +57,7 @@ const storage = multer.diskStorage({
     cb(null, `${uniqueSuffix}${ext}`);
   }
 });
+const storage = useExternalStorage ? multer.memoryStorage() : localDiskStorage;
 const upload = multer({
   storage,
   fileFilter: (req, file, cb) => {
@@ -502,22 +505,36 @@ app.get('/api/health', (req, res) => {
 
 // Image/Video upload endpoint with explicit Multer error handling
 app.post('/api/upload', (req, res) => {
-  upload.array('files', 10)(req, res, (err) => {
+  upload.array('files', 10)(req, res, async (err) => {
     if (err) {
       console.error('Upload error:', err);
       return res.status(400).json({ error: err.message || 'Upload failed' });
     }
     try {
-      const files = (req.files || []).map((f) => ({
+      const inFiles = req.files || [];
+      // External provider path: upload buffers to object storage
+      if (useExternalStorage) {
+        const uploaded = [];
+        for (const f of inFiles) {
+          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+          const ext = path.extname(f.originalname || '') || '.bin';
+          const safeName = `${uniqueSuffix}${ext}`;
+          const url = await uploadToObjectStore({ buffer: f.buffer, filename: safeName, mimetype: f.mimetype });
+          uploaded.push({ filename: safeName, url, mimetype: f.mimetype, size: f.size });
+        }
+        return res.status(201).json({ files: uploaded });
+      }
+      // Local path: files already saved to disk by multer
+      const files = inFiles.map((f) => ({
         filename: f.filename,
         url: `/uploads/${f.filename}`,
         mimetype: f.mimetype,
         size: f.size
       }));
-      res.status(201).json({ files });
+      return res.status(201).json({ files });
     } catch (e) {
       console.error('Upload processing error:', e);
-      res.status(500).json({ error: 'Upload processing failed' });
+      return res.status(500).json({ error: 'Upload processing failed' });
     }
   });
 });
@@ -525,6 +542,10 @@ app.post('/api/upload', (req, res) => {
 // List uploaded files
 app.get('/api/uploads', async (req, res) => {
   try {
+    if (useExternalStorage) {
+      // Listing remote bucket contents is not implemented here.
+      return res.status(200).json({ message: 'Uploads are stored in external object storage. Listing not implemented.' });
+    }
     const dir = uploadsDir;
     const entries = await fs.promises.readdir(dir);
     const detailed = await Promise.all(entries.map(async (name) => {
@@ -779,6 +800,38 @@ app.post('/api/galleries/:id/unlike', async (req, res) => {
     res.status(500).json({ error: 'Failed to unlike gallery' });
   }
 });
+
+// Root route - welcome page
+// Serve frontend build (Vite) from dist/
+const distPath = path.resolve('dist');
+if (fs.existsSync(distPath)) {
+  // Serve static assets
+  app.use(express.static(distPath));
+
+  // SPA fallback: send index.html for all non-API, non-uploads routes
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api') || req.path.startsWith('/uploads')) return next();
+    return res.sendFile(path.join(distPath, 'index.html'));
+  });
+} else {
+  // Fallback JSON if frontend hasn't been built yet
+  app.get('/', (req, res) => {
+    res.json({
+      message: 'Welcome to Feather Press API',
+      status: 'Server is running',
+      note: 'Build the frontend with `npm run build` to serve the UI.',
+      endpoints: {
+        health: '/api/health',
+        posts: '/api/posts',
+        quotes: '/api/quotes',
+        galleries: '/api/galleries',
+        audios: '/api/audios',
+        videos: '/api/videos',
+        users: '/api/users'
+      }
+    });
+  });
+}
 
 // Start server
 async function startServer() {
