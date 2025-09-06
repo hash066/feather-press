@@ -190,6 +190,6 @@ If the frontend can't connect to the backend:
 1. Use Render's built-in logs to monitor backend performance
 2. Check Aiven's dashboard for database metrics
 3. Use Netlify's analytics for frontend monitoring
-Feather Press is more than just a publishing tool — it is a powerful yet elegant ecosystem for digital creators. With its modular architecture, enterprise-ready deployment, and intuitive design philosophy, it delivers the perfect balance between simplicity for beginners and scalability for professionals.
+#Feather Press is more than just a publishing tool — it is a powerful yet elegant ecosystem for digital creators. With its modular architecture, enterprise-ready deployment, and intuitive design philosophy, it delivers the perfect balance between simplicity for beginners and scalability for professionals.
 
 🚀 Whether for personal blogging, collaborative media publishing, or professional knowledge sharing, Feather Press stands as a versatile, future-ready solution.
