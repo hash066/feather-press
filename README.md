@@ -7,7 +7,7 @@ It combines simplicity with powerful features like **AI-powered title generation
 
 ---
 
-## ✨ What can Feather Press do?
+##  What can Feather Press do?
 
 Feather Press makes it possible to host your own publishing platform with minimal fuss.  
 You can:
@@ -22,7 +22,7 @@ Whether you want a personal blog, a multimedia hub, or a collaborative publishin
 
 ---
 
-## 🚀 Key Features
+##  Key Features
 
 ### Core
 - Simple login and signup system (`admin / admin123` as test credentials, or create your own account)
@@ -42,7 +42,7 @@ Whether you want a personal blog, a multimedia hub, or a collaborative publishin
 
 ---
 
-## 📦 Requirements
+##  Requirements
 
 - **Node.js 18+** and npm
 - **MySQL 5.7+ / 8.0+** (Aiven-hosted recommended)
@@ -51,7 +51,7 @@ Whether you want a personal blog, a multimedia hub, or a collaborative publishin
 
 ---
 
-## ⚙️ Installation (Local Development)
+## ⚙ Installation (Local Development)
 
 ### 1. Clone Repository
 ```bash
@@ -59,7 +59,7 @@ git clone https://github.com/yourusername/feather-press.git
 cd feather-press
 # Feather Press Setup Guide
 
-## 📦 Install Dependencies
+##  Install Dependencies
 
 ### Backend
 ```bash
