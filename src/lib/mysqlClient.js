@@ -4,58 +4,8 @@ import path from 'path';
 
 // Database configuration
 
-const shouldUseSsl = String(process.env.MYSQL_SSL || '').toLowerCase() === 'true';
-const rejectUnauthorized = String(process.env.MYSQL_SSL_REJECT_UNAUTHORIZED || 'true').toLowerCase() === 'true';
-const caPath = process.env.MYSQL_SSL_CA_PATH ? path.resolve(process.env.MYSQL_SSL_CA_PATH) : undefined;
+// Disable SSL for local development
 let sslConfig = undefined;
-
-// Handle SSL configuration for different environments
-if (shouldUseSsl) {
-  console.log('SSL is enabled for MySQL connection');
-  
-  // For production environments like Render
-  if (process.env.NODE_ENV === 'production') {
-    console.log('Using production SSL configuration');
-    // In production, the CA cert might be provided as an environment variable or a file
-    if (process.env.MYSQL_SSL_CA) {
-      sslConfig = {
-        rejectUnauthorized,
-        ca: process.env.MYSQL_SSL_CA
-      };
-      console.log('Using CA certificate from environment variable');
-    } else if (caPath) {
-      try {
-        if (fs.existsSync(caPath)) {
-          sslConfig = {
-            rejectUnauthorized,
-            ca: fs.readFileSync(caPath, 'utf8')
-          };
-          console.log(`Using CA certificate from file: ${caPath}`);
-        } else {
-          console.error(`CA certificate file not found at: ${caPath}`);
-          sslConfig = { rejectUnauthorized };
-        }
-      } catch (error) {
-        console.error('Error reading CA certificate:', error);
-        sslConfig = { rejectUnauthorized };
-      }
-    } else {
-      console.log('No CA certificate provided, using default SSL configuration');
-      sslConfig = { rejectUnauthorized };
-    }
-  } else {
-    // For local development
-    sslConfig = { rejectUnauthorized };
-    if (caPath && fs.existsSync(caPath)) {
-      try {
-        sslConfig.ca = fs.readFileSync(caPath, 'utf8');
-        console.log(`Using CA certificate from file: ${caPath}`);
-      } catch (error) {
-        console.error('Error reading CA certificate:', error);
-      }
-    }
-  }
-}
 
 const dbConfig = {
   host: process.env.MYSQL_HOST || 'localhost',
@@ -89,6 +39,18 @@ export async function testConnection() {
 export async function initializeDatabase() {
   try {
     const connection = await pool.getConnection();
+    
+    // Create users table
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS users (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        username VARCHAR(255) UNIQUE NOT NULL,
+        password VARCHAR(255) NOT NULL,
+        role VARCHAR(50) DEFAULT 'user',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      )
+    `);
     
     // Create posts table
     await connection.execute(`
@@ -236,6 +198,20 @@ export async function initializeDatabase() {
     try { await connection.execute('ALTER TABLE posts ADD COLUMN tags VARCHAR(500) NULL'); } catch (e) {}
     try { await connection.execute('ALTER TABLE videos ADD COLUMN tags VARCHAR(500) NULL'); } catch (e) {}
     try { await connection.execute('ALTER TABLE galleries ADD COLUMN tags VARCHAR(500) NULL'); } catch (e) {}
+    
+    // Create default admin user if it doesn't exist
+    try {
+      const [existingAdmin] = await connection.execute('SELECT id FROM users WHERE username = ?', ['admin']);
+      if (existingAdmin.length === 0) {
+        await connection.execute(
+          'INSERT INTO users (username, password, role) VALUES (?, ?, ?)',
+          ['admin', 'admin123', 'admin']
+        );
+        console.log('Default admin user created');
+      }
+    } catch (e) {
+      console.error('Failed to create default admin user:', e);
+    }
     
     // Try to migrate existing comments table to new structure
     try {
