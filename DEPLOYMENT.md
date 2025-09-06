@@ -24,7 +24,7 @@ This guide will help you deploy your Feather Press application across Netlify (f
 
 ## 2. Backend Deployment (Render)
 
-### Deploy to Render
+## Deploy to Render
 
 1. Create a new Web Service on Render
 2. Connect your GitHub repository
