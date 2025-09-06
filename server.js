@@ -12,7 +12,16 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Middleware
-app.use(cors());
+// Updated CORS configuration for production deployment
+const FRONTEND_URL = process.env.FRONTEND_URL || 'https://feather-press-1.netlify.app';
+app.use(cors({
+  origin: process.env.NODE_ENV === 'production' 
+    ? [FRONTEND_URL] 
+    : 'http://localhost:5173',
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 // Serve uploaded images

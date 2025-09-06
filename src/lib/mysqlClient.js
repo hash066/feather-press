@@ -8,12 +8,52 @@ const shouldUseSsl = String(process.env.MYSQL_SSL || '').toLowerCase() === 'true
 const rejectUnauthorized = String(process.env.MYSQL_SSL_REJECT_UNAUTHORIZED || 'true').toLowerCase() === 'true';
 const caPath = process.env.MYSQL_SSL_CA_PATH ? path.resolve(process.env.MYSQL_SSL_CA_PATH) : undefined;
 let sslConfig = undefined;
+
+// Handle SSL configuration for different environments
 if (shouldUseSsl) {
-  sslConfig = { rejectUnauthorized };
-  if (caPath && fs.existsSync(caPath)) {
-    try {
-      sslConfig.ca = fs.readFileSync(caPath, 'utf8');
-    } catch {}
+  console.log('SSL is enabled for MySQL connection');
+  
+  // For production environments like Render
+  if (process.env.NODE_ENV === 'production') {
+    console.log('Using production SSL configuration');
+    // In production, the CA cert might be provided as an environment variable or a file
+    if (process.env.MYSQL_SSL_CA) {
+      sslConfig = {
+        rejectUnauthorized,
+        ca: process.env.MYSQL_SSL_CA
+      };
+      console.log('Using CA certificate from environment variable');
+    } else if (caPath) {
+      try {
+        if (fs.existsSync(caPath)) {
+          sslConfig = {
+            rejectUnauthorized,
+            ca: fs.readFileSync(caPath, 'utf8')
+          };
+          console.log(`Using CA certificate from file: ${caPath}`);
+        } else {
+          console.error(`CA certificate file not found at: ${caPath}`);
+          sslConfig = { rejectUnauthorized };
+        }
+      } catch (error) {
+        console.error('Error reading CA certificate:', error);
+        sslConfig = { rejectUnauthorized };
+      }
+    } else {
+      console.log('No CA certificate provided, using default SSL configuration');
+      sslConfig = { rejectUnauthorized };
+    }
+  } else {
+    // For local development
+    sslConfig = { rejectUnauthorized };
+    if (caPath && fs.existsSync(caPath)) {
+      try {
+        sslConfig.ca = fs.readFileSync(caPath, 'utf8');
+        console.log(`Using CA certificate from file: ${caPath}`);
+      } catch (error) {
+        console.error('Error reading CA certificate:', error);
+      }
+    }
   }
 }
 
