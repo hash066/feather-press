@@ -24,7 +24,7 @@ import {
   MessageCircle
 } from 'lucide-react';
 import { Navigation } from '@/components/Navigation';
-import { apiClient, API_ORIGIN } from '@/lib/apiClient';
+import { apiClient, API_ORIGIN, PhotoItem } from '@/lib/apiClient';
 import { useScrollAnimation } from '@/hooks/useScrollAnimation';
 import { FloatingShapes, GradientMesh } from '@/components/AnimatedBackground';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
