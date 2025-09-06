@@ -57,3 +57,14 @@ Whether you want a personal blog, a multimedia hub, or a collaborative publishin
 ```bash
 git clone https://github.com/yourusername/feather-press.git
 cd feather-press
+# Feather Press Setup Guide
+
+## 📦 Install Dependencies
+
+### Backend
+```bash
+cd backend
+npm install
+cd ../frontend
+npm install
+  
