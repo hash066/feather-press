@@ -4,12 +4,22 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { PenTool, Menu, X, Settings, User, LogOut, ChevronDown } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useSettings } from "./SettingsContext";
+import { SettingsDrawer } from "./SettingsDrawer";
+import { GlobalSearch } from "./GlobalSearch";
+import { DEFAULT_SETTINGS } from "@/lib/utils";
 
 export const Navigation = () => {
   const navigate = useNavigate();
+  const { settings } = useSettings();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [user, setUser] = useState<any>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  
+  // Ensure settings is defined
+  const siteSettings = settings || DEFAULT_SETTINGS;
 
   useEffect(() => {
     const userData = localStorage.getItem('user');
@@ -36,6 +46,12 @@ export const Navigation = () => {
 
   return (
     <>
+    {/* Settings Drawer */}
+    <SettingsDrawer 
+      open={settingsOpen} 
+      onOpenChange={setSettingsOpen} 
+      onSignOut={handleLogout}
+    />
     <nav className={`w-full sticky top-0 z-50 transition-all duration-300 ${
       isScrolled 
         ? 'bg-white/95 backdrop-blur-md border-b border-gray-200 shadow-lg' 
@@ -63,7 +79,7 @@ export const Navigation = () => {
                 <div className="absolute inset-0 w-8 h-8 bg-brand-accent/20 rounded-full blur-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
               </div>
               <h1 className="text-2xl lg:text-3xl font-display font-bold text-gray-800 group-hover:text-yellow-600 transition-colors duration-300">
-                {settings.title}
+                {siteSettings.title}
               </h1>
             </div>
           </div>
