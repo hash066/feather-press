@@ -135,4 +135,3 @@ This repo includes `.do/app.yaml`. You can use DigitalOcean's "Import from a spe
 
 - Locally (dev): uploads are saved under `public/uploads/` and served at `/uploads/*`.
 - App Platform: the filesystem is ephemeral. For persistence, the server uploads files to DigitalOcean Spaces and returns public URLs. Those URLs can be stored in MySQL alongside your content.
-
