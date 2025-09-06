@@ -1,13 +1,6 @@
 // API client for MySQL backend
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
-export const API_ORIGIN = (() => {
-  try {
-    const u = new URL(API_BASE_URL);
-    return `${u.protocol}//${u.host}`;
-  } catch {
-    return 'http://localhost:3001';
-  }
-})();
+const API_BASE_URL = 'http://localhost:3001/api';
+export const API_ORIGIN = 'http://localhost:3001';
 
 export interface Post {
   id: number;
