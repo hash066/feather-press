@@ -1,13 +1,6 @@
 // API client for MySQL backend
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://feather-press-backend.onrender.com/api';
-export const API_ORIGIN = (() => {
-  try {
-    const u = new URL(API_BASE_URL);
-    return `${u.protocol}//${u.host}`;
-  } catch {
-    return 'https://feather-press-backend.onrender.com';
-  }
-})();
+const API_BASE_URL = 'https://new-noox.onrender.com/api';
+export const API_ORIGIN = 'https://new-noox.onrender.com';
 
 export interface Post {
   id: number;
