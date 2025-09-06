@@ -50,6 +50,36 @@ Whether you want a personal blog, a multimedia hub, or a collaborative publishin
 - GitHub account connected with Netlify and Render for deployment
 
 ---
+## 🖥️ Tech Stack
+
+Feather Press is built with a **modern full-stack architecture**, ensuring performance, security, and scalability.
+
+### Frontend
+- ⚡ **Vite** – Fast build tool and development server  
+- ⚛️ **React** – Component-based UI library  
+- 🎨 **TailwindCSS** – Utility-first responsive styling  
+- 🧩 **ShadCN UI** – Pre-built accessible components  
+
+### Backend
+- 🟢 **Node.js** – Runtime environment  
+- 🚀 **Express.js** – Minimal and flexible web framework  
+- 🔑 **JWT (JSON Web Tokens)** – Authentication & authorization  
+- 🔒 **bcrypt.js** – Password hashing for secure login  
+
+### Database
+- 🛢️ **MySQL** – Relational database management system  
+- ☁️ **Aiven Cloud** – Managed MySQL hosting with SSL support  
+
+### Deployment & Hosting
+- 🌐 **Netlify** – Frontend hosting and CI/CD  
+- ⚙️ **Render** – Backend hosting with environment variable support  
+- 🔑 **Aiven** – Secure and reliable database infrastructure  
+
+### Additional Tools
+- 📦 **npm** – Dependency management  
+- 🔧 **dotenv** – Environment variable management  
+- 🐙 **GitHub** – Version control and repository hosting  
+
 
 ## ⚙ Installation (Local Development)
 
