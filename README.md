@@ -1,117 +1,59 @@
+[English](README.md), [Deutsch](README_de_DE.md), [Italiano](README_it_IT.md), [한국인](README_ko_KR.md), [Nederlands](README_nl_NL.md), [简体中文](README_zh_CN.md)
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+# Feather Press
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
-
-**Edit a file directly in GitHub**
-
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+Feather Press is a lightweight, modern **content publishing platform** that allows you to create and manage blogs, videos, galleries, and quotes with ease.  
+It combines simplicity with powerful features like **AI-powered title generation**, responsive design, and a clean interface for both creators and readers.
 
 ---
 
-## Deploying to DigitalOcean App Platform (Full Stack)
+## ✨ What can Feather Press do?
 
-This repository is set up so a single Node.js service serves both the frontend (Vite build) and the backend (Express API).
+Feather Press makes it possible to host your own publishing platform with minimal fuss.  
+You can:
 
-### 1) Prerequisites
+- Write and publish blogs with rich content
+- Share videos, galleries, and quotes
+- Generate AI-powered titles for your posts
+- Manage your content with a friendly dashboard
+- Browse posts in an organized feed (blogs, videos, galleries, and more)
 
-- A MySQL database (DigitalOcean Managed Database, PlanetScale, or your own MySQL)
-- Optional but recommended: DigitalOcean Spaces for persistent uploads
-- GitHub repo containing this project
+Whether you want a personal blog, a multimedia hub, or a collaborative publishing platform, Feather Press adapts to your needs.
 
-### 2) App Platform Configuration
+---
 
-- Service Type: Node.js App
-- Source: GitHub (root of this project)
-- Build Command:
-  ```sh
-  npm ci && npm run build
-  ```
-- Run Command:
-  ```sh
-  npm start
-  ```
-- Health Check Path: `/api/health`
+## 🚀 Key Features
 
-The server serves the frontend build from `dist/` and keeps APIs under `/api/*`.
+### Core
+- Simple login and signup system (`admin / admin123` as test credentials, or create your own account)
+- Fully responsive frontend built with **Vite + React + TailwindCSS**
+- Secure backend powered by **Node.js + Express**
+- MySQL database hosted on **Aiven** with SSL support
+- Clean user dashboard to manage content
+- AI Generate Mode to suggest titles from your summaries
+- Deployment-ready for **Netlify (frontend)** and **Render (backend)**
 
-### 3) Environment Variables
+### Content Types
+- **Blogs** – Write and publish articles
+- **Videos** – Add and view uploaded video content
+- **Gallery** – Share image collections
+- **Quotes** – Create inspirational or reference quotes
+- **Posts** – General publishing area for any content type
 
-Copy from `.env.example.app-platform` into App Platform → Settings → Environment Variables:
+---
 
-- Database (required)
-  - `MYSQL_HOST`
-  - `MYSQL_PORT` (e.g., 3306)
-  - `MYSQL_USER`
-  - `MYSQL_PASSWORD`
-  - `MYSQL_DATABASE` (e.g., feather_press)
+## 📦 Requirements
 
-- Storage (recommended for production uploads)
-  - `STORAGE_PROVIDER=spaces` (any non-`local` value enables object storage)
-  - `SPACES_ENDPOINT` (e.g., https://nyc3.digitaloceanspaces.com)
-  - `SPACES_REGION` (e.g., nyc3)
-  - `SPACES_BUCKET`
-  - `SPACES_KEY`
-  - `SPACES_SECRET`
-  - Optional: `PUBLIC_CDN_BASE` if you have a CDN/custom domain over your bucket
+- **Node.js 18+** and npm
+- **MySQL 5.7+ / 8.0+** (Aiven-hosted recommended)
+- SSL certificate for database connection (`aiven-ca.pem`)
+- GitHub account connected with Netlify and Render for deployment
 
-- App
-  - `NODE_ENV=production`
+---
 
-### 4) Auto-Deploy from GitHub
+## ⚙️ Installation (Local Development)
 
-Enable "Auto-deploy on push" so each push to your chosen branch triggers a new build + deploy.
-
-### 5) Optional: App Spec
-
-This repo includes `.do/app.yaml`. You can use DigitalOcean's "Import from a spec" to create the app with pre-filled settings. You'll still need to enter secrets (DB + Spaces) in the dashboard.
-
-### 6) Notes on Uploads
-
-- Locally (dev): uploads are saved under `public/uploads/` and served at `/uploads/*`.
-- App Platform: the filesystem is ephemeral. For persistence, the server uploads files to DigitalOcean Spaces and returns public URLs. Those URLs can be stored in MySQL alongside your content.
+### 1. Clone Repository
+```bash
+git clone https://github.com/yourusername/feather-press.git
+cd feather-press
