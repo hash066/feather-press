@@ -8,8 +8,9 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: "localhost",
     port: process.env.PORT || 5173,
+    cors: true
   },
-  base: "./",
+  base: "/",
   plugins: [
     react(),
     mode === 'development' &&
